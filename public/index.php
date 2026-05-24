@@ -17,7 +17,7 @@ $environment = 'development';
         <section class="card">
             <p class="eyebrow">Development Server</p>
             <h1><?= htmlspecialchars($appName, ENT_QUOTES, 'UTF-8') ?></h1>
-            <p>The CFLAG DMR project is running successfully.</p>
+            <p>The CFLAG DMR development server is Live and connected.</p>
             <p class="muted">Environment: <code><?= htmlspecialchars($environment, ENT_QUOTES, 'UTF-8') ?></code></p>
         </section>
     </main>
