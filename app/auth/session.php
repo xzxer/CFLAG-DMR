@@ -26,14 +26,14 @@ function verify_csrf(string $token): bool
     return hash_equals($_SESSION['csrf_token'] ?? '', $token);
 }
 
-function is_admin(): bool
+function is_logged_in(): bool
 {
-    return isset($_SESSION['admin_id']) && is_int($_SESSION['admin_id']);
+    return isset($_SESSION['user_id']) && is_int($_SESSION['user_id']);
 }
 
-function require_admin(): void
+function require_login(): void
 {
-    if (!is_admin()) {
+    if (!is_logged_in()) {
         redirect('/login.php');
     }
 }
