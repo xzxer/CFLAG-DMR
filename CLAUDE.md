@@ -1,10 +1,10 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/003-role-permissions/plan.md
+at specs/004-user-registration/plan.md
 
-The current active phase is F2: Role & Permission System (specs/003-role-permissions/).
-P0 (HBLink + HBMonv2 setup) and F1 (Admin login) are complete.
+The current active phase is F3: User Registration & Accounts (specs/004-user-registration/).
+P0 (HBLink + HBMonv2 setup), F1 (Admin login), and F2 (Role & Permission System) are complete.
 <!-- SPECKIT END -->
 
 ## Current Architecture Direction
