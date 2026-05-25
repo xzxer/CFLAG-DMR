@@ -121,6 +121,47 @@ The `dev` branch is the active development surface; `main` is the stable, produc
 **Rationale**: Keeping development work on `dev` protects the stability of `main` and provides a
 shared integration point for the team without the risk of untested code reaching production.
 
+### VII. Responsive and Mobile-First Design
+
+Every user-facing page MUST function correctly on mobile, tablet, and desktop viewports:
+
+- CSS MUST be written mobile-first using `min-width` media queries. Styles for small screens
+  are the default; larger-viewport overrides are additive.
+- Interactive controls (buttons, form inputs, links) MUST have a minimum touch target of 44×44 px.
+- The admin area MUST be fully operable on a tablet held in portrait orientation. Field
+  administration (adding peers, reviewing last-heard, managing talkgroups) is a primary use case
+  performed away from a desk.
+- A feature MUST NOT be marked complete until it has been verified in a mobile viewport in the
+  development browser.
+- Third-party CSS frameworks MAY be introduced if the team agrees and a concrete capability gap
+  is documented (see Principle I). Custom CSS remains the default.
+
+**Rationale**: DMR network operators are often in the field or at club events. An admin interface
+that only works on a desktop keyboard is a deployment blocker, not a cosmetic deficiency.
+
+### VIII. Scale, Observability, and Engine Separation
+
+The CFLAG DMR control plane MUST be designed for multi-node operation and observable behaviour
+from the start:
+
+- The database is the single source of truth for all configuration state. HBLink (and any future
+  engine) configuration files MUST be generated from the database, never hand-edited in
+  production. Hand-edited files are source material for initial import only.
+- The control plane MUST be written as CFLAG-owned application code. It MUST NOT be tightly
+  coupled to one engine implementation. Engine-specific adapters are permitted; engine-specific
+  logic leaking into domain models or UI controllers is prohibited.
+- Observability (last-heard logs, call session records, error events) MUST be captured in the
+  database as first-class data, not as a post-hoc add-on. Tables for this data MUST be defined
+  before features that depend on them are built.
+- The architecture MUST support adding a second node without a redesign. Any assumption that
+  "there is only one HBLink instance" MUST be explicitly documented and justified when made.
+- Multi-node coordination does not require a distributed systems redesign now, but the schema and
+  API surface MUST NOT make multi-node impossible to add later.
+
+**Rationale**: CFLAG DMR is intended to grow into a full network management platform analogous
+to AllStar Link's node model. Building single-node-only assumptions into the foundation would
+require a destructive rewrite at exactly the wrong time — when the network is live and growing.
+
 ## Technology Stack
 
 - **Language**: PHP 8.x — strict types enabled via `declare(strict_types=1)` in all source files
@@ -166,4 +207,4 @@ All feature plans MUST include a Constitution Check confirming compliance with t
 above. Violations MUST be justified in the plan's Complexity Tracking table before implementation
 begins. All pull requests MUST reference the Constitution Check outcome in their description.
 
-**Version**: 1.0.0 | **Ratified**: 2026-05-24 | **Last Amended**: 2026-05-24
+**Version**: 1.1.0 | **Ratified**: 2026-05-24 | **Last Amended**: 2026-05-25

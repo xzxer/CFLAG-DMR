@@ -2,7 +2,7 @@
 
 **Feature Branch**: `dev` (project-level document; not feature-branch-scoped)
 
-**Created**: 2026-05-24 | **Last Updated**: 2026-05-25 (decisions resolved from handoff doc + user clarifications)
+**Created**: 2026-05-24 | **Last Updated**: 2026-05-25 (role model, talkgroup ownership, moderation states, club/invite system added)
 
 **Status**: Active — canonical product scope reference
 
@@ -91,7 +91,7 @@ Four access tiers, each building on the previous:
 |----|--------------|--------|-------|
 | P0 | HBLink + HBMonv2 Setup & Analysis | ✅ Complete | [spec](../002-hblink-setup/spec.md) |
 | F1 | Admin Authentication | ✅ Complete | [spec](../001-admin-login/plan.md) |
-| F2 | Role & Permission System | Not started | Blocks F3–F17 |
+| F2 | Role & Permission System | Not started | Blocks F3–F20 |
 | F3 | User Registration & Accounts | Not started | Depends on F2 |
 | F4 | User Profiles | Not started | Depends on F3 |
 | F5 | Hotspot & Repeater Registration | Not started | Depends on F3, AD-2 |
@@ -108,6 +108,8 @@ Four access tiers, each building on the previous:
 | F16 | User Messaging | Not started | Depends on F3 |
 | F17 | Community Chat Channels | Not started | Depends on F3 |
 | F18 | Radio Programming Tools | Not started | Depends on F5 |
+| F19 | Club System | Not started | Depends on F3, F6 |
+| F20 | Invite System | Not started | Ships with or after F3 |
 
 ---
 
@@ -129,18 +131,33 @@ Complete. Admins log in at `/login.php`, session auth via MariaDB, protected `/a
 
 ### F2: Role & Permission System
 
-Defines the permission tiers used by every subsequent feature. Must be built before any feature that requires checking what a logged-in user is allowed to do.
+Defines the permission tiers and extensible role structure used by every subsequent feature. Must be built before any feature that requires checking what a logged-in user is allowed to do.
 
-**Roles**:
-- `system_admin` — full access to everything
-- `moderator` — can mute and submit ban requests; cannot change config
+**Network roles** (in ascending privilege order):
 - `user` — registered network user; can manage own profile, hotspots, and talkgroup subscriptions
+- `moderator` — can mute users, submit ban requests; cannot change network config
+- `admin` — server-specific admin; full config access within their assigned node
+- `system_admin` — global administrator; all access including user management, role assignment, and system settings
+
+**Role design principles**:
+- Roles are extensible: a `roles` table stores role definitions; a `user_roles` join table assigns roles to users. This schema supports custom roles in the future without schema changes.
+- A user may hold multiple roles simultaneously (e.g., `user` + `moderator`). Permissions accumulate; the most permissive matching role wins.
+- Role checks are server-side on every protected endpoint. Wrong role returns 403 or redirects to login.
+- System admins can assign and revoke roles for any user.
+- All existing `admin_users` records are migrated to `system_admin` role when this feature ships.
+
+**Moderation states** (separate from role; applied to the user record):
+- `active` — normal state; all access per their role
+- `suspended` — cannot log in; generic error shown; DMR ID removed from whitelist
+- `banned` — cannot log in; permanently blocked; record retained for audit trail; DMR ID removed from whitelist
+- `muted_on_network` — can log in to the website; DMR ID is removed from the REG_ACL whitelist (cannot transmit on the DMR network) but website access is unchanged
 
 **Requirements**:
-- Role stored on the user account
-- Role checked on every protected endpoint; wrong role → 403 or redirect
-- Admins can assign and change roles
-- All current admin_users are `system_admin` role by default
+- `roles` table: `id`, `name`, `display_name`, `description`, `is_system_role` (bool — system roles cannot be deleted)
+- `user_roles` join table: `user_id`, `role_id`, `assigned_by`, `assigned_at`
+- `moderation_state` column on `users` table (enum: active, suspended, banned, muted_on_network); default `active`
+- Permission helper function: `user_has_role(user_id, role_name): bool`
+- Seed data: the four system roles created on migration
 
 ---
 
@@ -149,12 +166,26 @@ Defines the permission tiers used by every subsequent feature. Must be built bef
 A public registration form where licensed amateur radio operators can create a user account.
 
 **Requirements**:
-- Registration collects: callsign (required, used as username), email, password, display name
-- Callsign must be unique in the system
-- Email verified before account is activated (or manual activation by admin — TBD)
+- Registration collects: callsign (required, unique), DMR ID (required), email, password, display name
+- Callsign and DMR ID must each be unique in the system
+- Email verified before account is activated (single-use token, 24h expiry; see AD-3 for full flow)
 - Admins can manually create, activate, suspend, and delete accounts
-- Users can log in at `/login.php` (same form as admins, role determines what they see)
-- Suspended accounts cannot log in; generic error shown
+- Users log in at `/login.php` (shared form with admin_users; role determines what they see after login)
+- Suspended or banned accounts cannot log in; generic error shown ("Account is not active.")
+- `muted_on_network` accounts can log in normally
+
+**Callsign/DMR ID verification** (server-type setting):
+- For **amateur radio networks**: callsign format is validated against amateur callsign patterns; DMR ID is validated against RadioID.net lookup (optional, admin-toggleable via `system_settings`).
+- For **commercial networks**: callsign validation is relaxed; DMR ID format validation only.
+- The server type is set once by the system admin in system settings and controls which validation rules apply.
+
+**Feature tier foundation**:
+- The `users` table includes a `tier` column (enum: `free`, `gold`, `premium`); default `free`.
+- Feature-tier checks are gated via feature flags in `system_settings`. The tier column is the foundation for paid plans in future work; all users are `free` tier until a billing system is implemented.
+
+**Invite system** (see F20):
+- Optionally, registration requires an invite code. When enabled, an invite is consumed on registration and the inviter's `invite_count` is incremented.
+- Invite tracking feeds the badging/rewards system (future work).
 
 ---
 
@@ -186,15 +217,21 @@ Registered users can add their hotspots and repeaters to the network, manage dev
 
 ### F6: Talkgroup Management
 
-Admins manage the canonical list of talkgroups. Users can request new talkgroups. Admins approve or deny requests.
+Admins manage the canonical list of talkgroups. Users can request new talkgroups and be assigned ownership.
+
+**Talkgroup ownership tiers**:
+- **Admin-owned** (default): Only admins can edit the talkgroup's settings.
+- **User partial ownership** (default for user-created talkgroups): The owner can edit the talkgroup's `name` and `description` only. Access control remains admin-managed.
+- **User full ownership** (requires separate approval): Owner can also manage an allowed/blocked DMR ID list for their talkgroup. Full ownership is requested by the user and approved by an admin.
 
 **Requirements**:
-- Talkgroup record: ID (integer), name, description, type (open/private), owner (admin or user), active status
+- Talkgroup record: ID (integer), name, description, type (open/private/club), owner_user_id (nullable), ownership_tier (enum: admin, user_partial, user_full), active status
 - **Open talkgroups**: any registered user can subscribe their device
 - **Private talkgroups**: users must request access; owner/admin approves
-- **Whitelist/Blacklist**: admins can explicitly allow or deny specific callsigns on any talkgroup
-- New talkgroup requests submitted by users → enter pending queue → admin approves with final TGID assignment
-- Admins can create, edit, disable, and delete talkgroups directly
+- **Allowed/blocked list** (for full-ownership talkgroups): owner explicitly allows or blocks specific DMR IDs
+- New talkgroup requests submitted by users → pending queue → admin approves with final TGID assignment and assigns ownership tier
+- Admins can create, edit, change ownership, disable, and delete talkgroups directly
+- Ownership upgrade request: user submits request explaining why they want full control → admin approves/denies
 
 ---
 
@@ -250,14 +287,24 @@ Public-facing dashboard showing live network health without requiring login.
 
 ### F11: Moderation Tools
 
-Moderators and admins can take action against problematic traffic sources.
+Moderators and admins can take action against problematic users and traffic sources.
+
+**Three distinct moderation states** (defined in F2; applied here):
+- **Muted on network** (`muted_on_network`): DMR ID removed from REG_ACL whitelist → cannot transmit. User can still log in and see their profile. Intended for temporary RF silence (e.g., interference incident). Can be timed (auto-reversal) or indefinite.
+- **Suspended** (`suspended`): Cannot log in to the website. DMR ID removed from whitelist. Intended for users under investigation or temporary penalty. Reversible by admin.
+- **Banned** (`banned`): Permanent. Cannot log in. DMR ID removed from whitelist. Record retained for audit trail. Can only be reversed by system admin.
+
+**Who can do what**:
+- **Moderators**: Can apply `muted_on_network` directly (timed, up to 24hr). Can submit suspension or ban requests with evidence. Cannot directly suspend or ban.
+- **Admins**: Can apply all three states directly. Can approve or deny moderator-submitted requests.
+- **System admins**: Can reverse any moderation state, including permanent bans.
 
 **Requirements**:
-- **Mute 1hr / 3hr / 6hr / 24hr**: Excludes the targeted peer/callsign from the generated config for the duration. Automatically re-enabled when the timer expires (cron job regenerates config + restart)
-- **Request Ban**: Moderator submits a ban request with reason and evidence. Goes to admin queue for approval. Approved bans permanently disable the peer account until an admin reverses it
-- **Mute/ban log**: All moderation actions recorded with actor, target, reason, timestamp, and outcome
-- Moderators can only request bans — they cannot directly ban. Admins approve or deny ban requests.
-- All moderation actions are visible to all moderators and admins (not to regular users)
+- **Network mute timer**: 1hr / 3hr / 6hr / 24hr / indefinite. Timed mutes auto-reverse via cron (regenerates config + restart).
+- **Suspension/ban requests**: Moderator submits reason + evidence; goes to admin approval queue.
+- **Moderation log**: All actions recorded with actor, target_user_id, state_applied, reason, evidence_notes, timestamp, and outcome (for requests: approved/denied by whom).
+- Moderation log is visible to all moderators and admins; not shown to regular users.
+- Applying any moderation state that changes REG_ACL (all three) triggers a config regen + restart job.
 
 ---
 
@@ -343,6 +390,45 @@ Discord-style chat channels for community communication.
 
 ---
 
+### F19: Club System
+
+Radio clubs can have a presence on the platform, with club-level roles separate from network-wide roles.
+
+**Model**:
+- A club is a named entity with an owner (the creating user), a description, and optional website/social links.
+- Club membership: users can join a club. Joining may be open (any user) or by invitation/approval (club owner decides).
+- Club-level roles: each club can assign its members a club role independent of their network role.
+  - `club_owner` — created the club; can manage all club settings, members, and club talkgroups
+  - `club_officer` — can manage members and club content; cannot delete the club
+  - `club_member` — standard member
+- Club roles do not grant network-level privileges (a `club_owner` is not automatically a network `admin`).
+- Clubs can own talkgroups (a talkgroup can be associated with a club and use club membership as the access gate).
+
+**Requirements**:
+- `clubs` table: `id`, `name`, `slug`, `description`, `owner_user_id`, `join_mode` (open/invite), `created_at`
+- `club_members` table: `club_id`, `user_id`, `club_role` (owner/officer/member), `joined_at`
+- System admins can dissolve any club; club owners can delete their own club
+- Club page shows: name, description, member list (configurable privacy), club talkgroups
+- Network admins are not automatically club members and do not automatically have `club_owner` rights on all clubs
+
+---
+
+### F20: Invite System
+
+Admins and trusted users can generate invite codes that give new registrants a faster path to account activation.
+
+**Requirements**:
+- Invite codes are single-use; each code is tied to the user who generated it (`inviter_user_id`)
+- When invite-required registration is enabled (system setting), a valid invite code is required to register
+- When invite-optional, an invite code at registration time credits the inviter for the referral
+- `invites` table: `id`, `code`, `inviter_user_id`, `used_by_user_id` (null until consumed), `created_at`, `used_at`, `expires_at`
+- Invite generation limits: controlled per-role by system setting (e.g., users get 3 invites; moderators get 10; system setting overrides)
+- Inviter's invite history is visible on their profile (to moderators+ and themselves)
+- Invite usage feeds the future badging/rewards system: `users.invite_count` is incremented when an invite is consumed
+- System admins can generate unlimited invite codes; can revoke unused codes
+
+---
+
 ### F18: Radio Programming Tools
 
 Helps users configure their radios and hotspots to connect to the network.
@@ -361,7 +447,7 @@ The following entities will live in the CFLAG DMR MariaDB database. Detailed sch
 
 | Entity group | Key Tables | Notes |
 |---|---|---|
-| Users & auth | `users`, `email_verifications`, `user_sessions`, `roles` | Replaces/extends `admin_users`; roles column on users table |
+| Users & auth | `users`, `email_verifications`, `user_sessions`, `roles`, `user_roles` | Replaces/extends `admin_users`; extensible role system with join table; `tier` (free/gold/premium) and `moderation_state` on users |
 | Subscriber data | `subscriber_ids` | Radio ID → callsign/name lookup; pulled from RadioID.net + local overrides |
 | Devices | `devices`, `device_talkgroups` | Hotspots and repeaters; approval status controls REG_ACL whitelist |
 | Talkgroups | `talkgroups`, `talkgroup_acl`, `talkgroup_requests` | categories: local, regional, tactical, system, bridge, parrot |
@@ -369,6 +455,8 @@ The following entities will live in the CFLAG DMR MariaDB database. Detailed sch
 | DMR activity | `dmr_call_sessions`, `dmr_events` | call_sessions for dashboard/analytics; events for raw/debug capture |
 | Moderation | `mod_actions`, `ban_requests` | |
 | Node management | `nodes`, `node_links` | Multi-node OBP linking |
+| Clubs | `clubs`, `club_members` | club_members.club_role: owner/officer/member |
+| Invites | `invites` | inviter_user_id, used_by_user_id, expires_at |
 | Messaging | `messages`, `message_threads` | |
 | Chat | `chat_channels`, `chat_messages` | |
 | Config backups | `config_backups` | Metadata + file path; files stored outside web root |
@@ -394,6 +482,9 @@ The following entities will live in the CFLAG DMR MariaDB database. Detailed sch
 - `registration_open` — bool, controls whether registration form is accessible
 - `require_device_approval` — bool, controls auto-approve vs admin-approve for device requests
 - `network_passphrase` — the short MMDVM passphrase (≤16 chars) used in generated hblink.cfg
+- `callsign_verification_mode` — enum: `amateur` (RadioID.net + format check) / `commercial` (format only) / `disabled`
+- `require_invite_for_registration` — bool, default false
+- `feature_tier_enabled` — bool, default false (gates tier-specific features; foundation for paid plans)
 
 ---
 
@@ -445,16 +536,21 @@ A future diagnostic view should show the full trace for any call session — wha
 | 15 | F16 | User Messaging | Depends on F3 |
 | 16 | F17 | Community Chat Channels | Depends on F3 |
 | 17 | F18 | Radio Programming Tools | Depends on F5 (device data) and F6 (talkgroup data) |
+| 18 | F19 | Club System | Depends on F3 (users), F6 (talkgroups) |
+| 19 | F20 | Invite System | Depends on F3 (user accounts); can ship with or after F3 |
 
 ---
 
 ## Open Questions
 
-| # | Question | Blocks |
-|---|----------|--------|
-| OQ-1 | AD-2: Per-hotspot auth — shared passphrase + enable/disable, or proxy layer? | F5, F7 |
-| OQ-2 | AD-3: Email verification on registration, or admin-activated accounts? | F3 |
-| OQ-3 | Should the public last-heard page show callsigns, or only talkgroup activity? (privacy consideration) | F9, F10 |
-| OQ-4 | Is there a public-facing "about this network" page, or is the dashboard the home page? | F10 |
-| OQ-5 | Does the chat (F17) need real-time delivery for MVP, or is 30-second polling acceptable? | F17 |
-| OQ-6 | What file size limit applies to chat attachments (F17)? | F17 |
+| # | Question | Status | Blocks |
+|---|----------|--------|--------|
+| OQ-1 | AD-2: Per-hotspot auth — shared passphrase + DMR ID whitelist (REG_ACL) | ✅ Resolved | F5, F7 |
+| OQ-2 | AD-3: Email verification on registration | ✅ Resolved | F3 |
+| OQ-3 | Public last-heard: callsigns shown, or talkgroup-only? (privacy consideration) | Open | F9, F10 |
+| OQ-4 | Is there a public "about this network" landing page, or is the dashboard the home page? | Open | F10 |
+| OQ-5 | Does the chat (F17) need real-time delivery for MVP, or is 30-second polling acceptable? | Open | F17 |
+| OQ-6 | What file size limit applies to chat attachments (F17)? | Open | F17 |
+| OQ-7 | Callsign/DMR ID verification against RadioID.net — is this enabled by default, or admin opt-in? | Open | F3 |
+| OQ-8 | Club talkgroups — can a club own a talkgroup with `user_full` ownership by default, or does that still require separate approval? | Open | F6, F19 |
+| OQ-9 | Invite-required vs invite-optional registration — what is the system default? | Open | F3, F20 |
