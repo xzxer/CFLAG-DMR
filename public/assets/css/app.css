@@ -188,6 +188,7 @@ code {
 .badge-admin          { background: #1e3a5f; color: #93c5fd; }
 .badge-moderator      { background: #3b2506; color: #fde68a; }
 .badge-user           { background: #1e293b; color: #94a3b8; }
+.badge-unverified     { background: #1c3151; color: #7dd3fc; }
 
 /* ── Button variants ─────────────────────────────────────── */
 .btn-sm {

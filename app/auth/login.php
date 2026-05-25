@@ -4,28 +4,40 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/database/connection.php';
 require_once dirname(__DIR__) . '/auth/session.php';
 
-function attempt_login(string $username, string $password): bool
+const LOGIN_OK         = 'ok';
+const LOGIN_INVALID    = 'invalid';
+const LOGIN_UNVERIFIED = 'unverified';
+
+function attempt_login(string $identifier, string $password): string
 {
-    $db   = get_db();
+    $db       = get_db();
+    $by_email = str_contains($identifier, '@');
+    $col      = $by_email ? 'email' : 'username';
+
     $stmt = $db->prepare(
-        'SELECT id, username, password_hash, display_name, moderation_state
+        "SELECT id, username, password_hash, display_name, moderation_state, email_verified_at
          FROM users
-         WHERE username = ?'
+         WHERE {$col} = ?
+         LIMIT 1"
     );
-    $stmt->execute([$username]);
+    $stmt->execute([$identifier]);
     $row = $stmt->fetch();
 
     if ($row === false) {
         password_verify($password, '$2y$10$invalidhashpadding00000000000000000000000000000000000000');
-        return false;
+        return LOGIN_INVALID;
     }
 
     if (!password_verify($password, $row['password_hash'])) {
-        return false;
+        return LOGIN_INVALID;
     }
 
     if ($row['moderation_state'] === 'suspended' || $row['moderation_state'] === 'banned') {
-        return false;
+        return LOGIN_INVALID;
+    }
+
+    if ($row['email_verified_at'] === null) {
+        return LOGIN_UNVERIFIED;
     }
 
     session_regenerate_id(true);
@@ -37,5 +49,5 @@ function attempt_login(string $username, string $password): bool
     $db->prepare('UPDATE users SET last_login_at = NOW() WHERE id = ?')
        ->execute([$row['id']]);
 
-    return true;
+    return LOGIN_OK;
 }
