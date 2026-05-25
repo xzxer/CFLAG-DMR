@@ -28,6 +28,11 @@ declare(strict_types=1);
         ) {
             $value = substr($value, 1, -1);
         }
+        if ($value === 'true') {
+            $value = true;
+        } elseif ($value === 'false') {
+            $value = false;
+        }
         $parsed[$key] = $value;
     }
 
