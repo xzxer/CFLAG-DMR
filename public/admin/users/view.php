@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__, 3) . '/app/auth/roles.php';
+require_once dirname(__DIR__, 3) . '/app/email/mailer.php';
 
 start_session();
 require_role('admin');
@@ -15,8 +16,9 @@ if ($user_id === 0) {
 }
 
 $stmt = $db->prepare(
-    'SELECT id, username, email, display_name, dmr_id,
-            moderation_state, mute_expires_at, tier, last_login_at, created_at
+    'SELECT id, username, callsign, email, display_name, dmr_id,
+            moderation_state, mute_expires_at, tier, last_login_at, created_at,
+            email_verified_at
      FROM users WHERE id = ?'
 );
 $stmt->execute([$user_id]);
@@ -29,6 +31,7 @@ if ($user === false) {
 
 $flash_error   = '';
 $flash_success = '';
+$is_system_admin = user_has_role($actor_id, 'system_admin');
 
 /* ── POST handler ─────────────────────────────────────────────── */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -186,6 +189,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $flash_success = 'Ban reversed.';
                     break;
                 }
+                case 'manual_verify': {
+                    if (!$is_system_admin) {
+                        throw new \RuntimeException('Insufficient privileges.');
+                    }
+                    $db->prepare('UPDATE users SET email_verified_at = NOW() WHERE id = ?')
+                       ->execute([$user_id]);
+                    log_audit_action($actor_id, 'account_verified', 'user', $user_id, ['method' => 'manual']);
+                    $flash_success = 'Account manually verified.';
+                    break;
+                }
+                case 'resend_verify': {
+                    if (!$is_system_admin) {
+                        throw new \RuntimeException('Insufficient privileges.');
+                    }
+                    $db->prepare(
+                        'UPDATE email_verifications SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL'
+                    )->execute([$user_id]);
+                    $token = bin2hex(random_bytes(32));
+                    $db->prepare(
+                        'INSERT INTO email_verifications (user_id, token, expires_at)
+                         VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))'
+                    )->execute([$user_id, $token]);
+                    send_verification_email($user['email'], $user['display_name'], $token);
+                    log_audit_action($actor_id, 'verification_resent', 'user', $user_id);
+                    $flash_success = 'Verification email resent.';
+                    break;
+                }
+                case 'delete_user': {
+                    if (!$is_system_admin) {
+                        throw new \RuntimeException('Insufficient privileges.');
+                    }
+                    if ($user_id === $actor_id) {
+                        throw new \RuntimeException('You cannot delete your own account.');
+                    }
+                    log_audit_action($actor_id, 'account_deleted', 'user', $user_id, ['username' => $user['username']]);
+                    $db->prepare('DELETE FROM users WHERE id = ?')->execute([$user_id]);
+                    redirect('/admin/users/');
+                    break;
+                }
                 default:
                     $flash_error = 'Unknown action.';
             }
@@ -202,11 +244,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /* ── View data ────────────────────────────────────────────────── */
-$user_roles    = get_user_roles($user_id);
-$actor_level   = actor_max_level($actor_id);
-$is_system_admin = user_has_role($actor_id, 'system_admin');
-$is_admin        = user_has_role($actor_id, 'admin');
-$is_moderator    = user_has_role($actor_id, 'moderator');
+$user_roles   = get_user_roles($user_id);
+$actor_level  = actor_max_level($actor_id);
+$is_admin     = user_has_role($actor_id, 'admin');
+$is_moderator = user_has_role($actor_id, 'moderator');
 
 $all_roles = $db->query('SELECT name, display_name FROM roles ORDER BY sort_order')->fetchAll();
 
@@ -291,6 +332,44 @@ $csrf = csrf_token();
                         : '—' ?>
                 </span>
             </div>
+            <div class="field-row">
+                <span class="field-label">Verification</span>
+                <span class="field-value">
+                    <?php if ($user['email_verified_at'] !== null): ?>
+                        <span class="muted" style="font-size:0.85rem;">
+                            <?= htmlspecialchars($user['email_verified_at'], ENT_QUOTES, 'UTF-8') ?>
+                        </span>
+                    <?php else: ?>
+                        <span class="badge badge-unverified">Not Verified</span>
+                    <?php endif; ?>
+                </span>
+            </div>
+
+            <?php if ($is_system_admin && $user['email_verified_at'] === null): ?>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+                <form method="post" action="">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="hidden" name="action" value="manual_verify">
+                    <button type="submit" class="btn btn-sm btn-secondary">Manually Verify</button>
+                </form>
+                <form method="post" action="">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="hidden" name="action" value="resend_verify">
+                    <button type="submit" class="btn btn-sm btn-secondary">Resend Verification Email</button>
+                </form>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($is_system_admin): ?>
+            <div style="margin-bottom: 1rem;">
+                <form method="post" action=""
+                      onsubmit="return confirm('Delete <?= htmlspecialchars(addslashes($user['username']), ENT_QUOTES, 'UTF-8') ?>? This cannot be undone.')">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="hidden" name="action" value="delete_user">
+                    <button type="submit" class="btn btn-sm btn-danger">Delete Account</button>
+                </form>
+            </div>
+            <?php endif; ?>
 
             <!-- ── Roles ─────────────────────────────────────── -->
             <?php if ($is_system_admin): ?>

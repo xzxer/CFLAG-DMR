@@ -8,23 +8,28 @@ require_role('system_admin');
 
 $db = get_db();
 
+$filter_verified = isset($_GET['verified']) ? (string) $_GET['verified'] : null;
+
 $per_page = 25;
 $page     = max(1, (int) ($_GET['page'] ?? 1));
 $offset   = ($page - 1) * $per_page;
 
-$total = (int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn();
+$where = $filter_verified === '0' ? 'WHERE u.email_verified_at IS NULL' : '';
+
+$total = (int) $db->query("SELECT COUNT(*) FROM users u {$where}")->fetchColumn();
 $pages = (int) ceil($total / $per_page);
 
 $stmt = $db->prepare(
-    'SELECT u.id, u.username, u.display_name, u.moderation_state,
-            u.last_login_at, u.created_at,
-            GROUP_CONCAT(r.name ORDER BY r.sort_order SEPARATOR ",") AS roles
+    "SELECT u.id, u.username, u.display_name, u.moderation_state,
+            u.email_verified_at, u.last_login_at, u.created_at,
+            GROUP_CONCAT(r.name ORDER BY r.sort_order SEPARATOR ',') AS roles
      FROM users u
      LEFT JOIN user_roles ur ON ur.user_id = u.id
      LEFT JOIN roles r       ON r.id = ur.role_id
+     {$where}
      GROUP BY u.id
      ORDER BY u.id
-     LIMIT ? OFFSET ?'
+     LIMIT ? OFFSET ?"
 );
 $stmt->execute([$per_page, $offset]);
 $users = $stmt->fetchAll();
@@ -64,9 +69,14 @@ $name = $_SESSION['display_name'] ?? 'Admin';
             <p class="eyebrow">CFLAG DMR</p>
             <h1>User Management</h1>
 
-            <p style="display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.9rem; margin-bottom: 1.5rem;">
+            <p style="display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.9rem; margin-bottom: 1rem;">
                 <a href="/admin/" class="nav-link">← Dashboard</a>
                 <a href="/logout.php" class="nav-link">Log out</a>
+            </p>
+
+            <p style="display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.85rem; margin-bottom: 1.5rem;">
+                <a href="/admin/users/" class="nav-link<?= $filter_verified === null ? ' nav-link-active' : '' ?>">All users</a>
+                <a href="/admin/users/?verified=0" class="nav-link<?= $filter_verified === '0' ? ' nav-link-active' : '' ?>">Unverified only</a>
             </p>
 
             <div class="table-wrap">
@@ -104,6 +114,9 @@ $name = $_SESSION['display_name'] ?? 'Admin';
                                         <span class="badge <?= htmlspecialchars($state_badge[$st] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                                             <?= htmlspecialchars($state_label[$st] ?? $st, ENT_QUOTES, 'UTF-8') ?>
                                         </span>
+                                        <?php if ($u['email_verified_at'] === null): ?>
+                                            <span class="badge badge-unverified">Unverified</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="muted">
                                         <?= $u['last_login_at']
@@ -123,7 +136,7 @@ $name = $_SESSION['display_name'] ?? 'Admin';
                         <?php if ($p === $page): ?>
                             <span class="current"><?= $p ?></span>
                         <?php else: ?>
-                            <a href="?page=<?= $p ?>"><?= $p ?></a>
+                            <a href="?page=<?= $p ?><?= $filter_verified !== null ? '&verified=' . htmlspecialchars($filter_verified, ENT_QUOTES, 'UTF-8') : '' ?>"><?= $p ?></a>
                         <?php endif; ?>
                     <?php endfor; ?>
                 </div>
