@@ -108,7 +108,14 @@ cp .env.example .env
 ```
 
 Required keys: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`, `APP_SECRET`,
-`SESSION_SECURE_COOKIE`, `EMAIL_DEV_MODE`.
+`SESSION_SECURE_COOKIE`, `APP_URL`, `EMAIL_DEV_MODE`.
+
+For production email, also set:
+`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`,
+`MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, and set `EMAIL_DEV_MODE=false`.
+
+**Port guide**: 465 = implicit TLS (SMTPS), 587 = STARTTLS (recommended),
+25 = plain / opportunistic TLS. Most hosted SMTP providers use 587.
 
 ---
 
