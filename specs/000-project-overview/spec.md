@@ -91,13 +91,13 @@ Four access tiers, each building on the previous:
 |----|--------------|--------|-------|
 | P0 | HBLink + HBMonv2 Setup & Analysis | ✅ Complete | [spec](../002-hblink-setup/spec.md) |
 | F1 | Admin Authentication | ✅ Complete | [spec](../001-admin-login/plan.md) |
-| F2 | Role & Permission System | Not started | Blocks F3–F20 |
-| F3 | User Registration & Accounts | Not started | Depends on F2 |
+| F2 | Role & Permission System | ✅ Complete | [spec](../003-role-permission-system/spec.md) |
+| F3 | User Registration & Accounts | ✅ Complete | [spec](../004-user-registration/spec.md) |
 | F4 | User Profiles | Not started | Depends on F3 |
 | F5 | Hotspot & Repeater Registration | Not started | Depends on F3, AD-2 |
 | F6 | Talkgroup Management | Not started | Depends on F2, AD-1 |
 | F7 | Network Config & Peer Management | Not started | Depends on F2, AD-1 |
-| F8 | HBLink Config Visibility | Not started | Read-only, depends on F2 |
+| F8 | HBLink Config Visibility | 🔄 In Progress | Read-only viewer; [spec](../005-hblink-config-visibility/spec.md) |
 | F9 | Last-Heard & Activity Log | Not started | Public + authenticated views |
 | F10 | Network Status Dashboard | Not started | Public-facing |
 | F11 | Moderation Tools | Not started | Depends on F2, F3 |
@@ -129,7 +129,7 @@ Complete. Admins log in at `/login.php`, session auth via MariaDB, protected `/a
 
 ---
 
-### F2: Role & Permission System
+### F2: Role & Permission System ✅
 
 Defines the permission tiers and extensible role structure used by every subsequent feature. Must be built before any feature that requires checking what a logged-in user is allowed to do.
 
@@ -161,7 +161,7 @@ Defines the permission tiers and extensible role structure used by every subsequ
 
 ---
 
-### F3: User Registration & Accounts
+### F3: User Registration & Accounts ✅
 
 A public registration form where licensed amateur radio operators can create a user account.
 
