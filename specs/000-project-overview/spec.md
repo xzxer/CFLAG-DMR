@@ -2,364 +2,401 @@
 
 **Feature Branch**: `dev` (project-level document; not feature-branch-scoped)
 
-**Created**: 2026-05-24
+**Created**: 2026-05-24 | **Last Updated**: 2026-05-25
 
-**Status**: Active — in use as the canonical product scope reference
-
-**Input**: Derived from project constitution, architecture direction in CLAUDE.md, and team decisions
+**Status**: Active — canonical product scope reference
 
 ---
 
 ## Purpose of This Document
 
-This is the top-level product specification for CFLAG DMR. It defines the full scope of what the system needs to do, organized as independently deliverable feature areas. Each feature area listed here will be broken out into its own numbered feature spec (`specs/NNN-*/spec.md`) when that feature enters the implementation queue.
-
-**Feature delivery status**:
-
-| ID | Feature Area | Status | Feature Spec |
-|----|--------------|--------|--------------|
-| P0 | HBLink + HBMonv2 Setup & Analysis | Not started — **first** | — |
-| F1 | Admin Authentication | Specced, not yet built — after P0 | [001-admin-login](../001-admin-login/plan.md) |
-| F2 | HBLink Configuration Visibility | Not started — after P0 analysis | — |
-| F3 | Peer and Hotspot Management | Not started | — |
-| F4 | Talkgroup and Timeslot Management | Not started | — |
-| F5 | Last-Heard and Activity Log | Not started | — |
-| F6 | Safer Configuration Editing | Not started | — |
-| F7 | Controlled Reload and Restart | Not started | — |
-| F8 | Backup and Rollback | Not started | — |
+Top-level product specification for CFLAG DMR. Defines the full scope of what the system needs to do, organized as independently deliverable feature areas. Each feature area listed here will be broken out into its own numbered feature spec (`specs/NNN-*/spec.md`) when it enters the implementation queue.
 
 ---
 
-## Product Description
+## Product Vision
 
-CFLAG DMR is a web-based management dashboard for a live DMR (Digital Mobile Radio) amateur radio repeater network. The network runs on an HBLink-compatible master server. CFLAG DMR provides a protected, browser-based control plane that lets a small group of licensed amateur radio operators manage the network without direct server access.
+CFLAG DMR is a web-based platform for managing a live DMR (Digital Mobile Radio) amateur radio network. It is designed around a node-based architecture — each server running HBLink is a node. Nodes can operate independently or link together to route traffic across networks, similar to how AllStar Link works.
 
-The system sits alongside HBLink — it reads HBLink configuration files, manages its own database of admin accounts and activity records, and (when authorized) triggers reload operations on the HBLink process. It is intentionally decoupled from HBLink internals so that the underlying engine could be replaced without rewriting the control plane.
+The platform has three audiences:
 
-**Primary actors**: Admin operators (licensed amateur radio operators with admin credentials). No public-facing users in the current scope.
+- **System admins**: Full control over server configuration, user management, talkgroup management, moderation, and theming.
+- **Network moderators**: Can moderate traffic — mute or ban request problematic nodes/users — within limits defined by admins.
+- **Registered users**: Licensed amateur radio operators who register accounts, connect their hotspots/repeaters, manage their own devices and talkgroup subscriptions, and communicate with other users on the platform.
 
----
-
-## User Scenarios & Testing
-
----
-
-### P0: HBLink + HBMonv2 Setup and Analysis (Priority: P0) — DO FIRST
-
-Before any dashboard feature can be built, HBLink and its monitoring layer must be installed on the dev server and fully understood. This phase is a prerequisite for every subsequent feature — it produces the knowledge and verified environment that everything else depends on.
-
-**Installer**: [ShaYmez/hblink3-docker-install](https://github.com/ShaYmez/hblink3-docker-install) — a one-shot Bash script for Debian/Ubuntu that installs HBLink in Docker and HBMonv2 as a systemd service.
-
-**Why this priority**: CFLAG DMR is a management layer on top of HBLink. We cannot design config viewers, peer management, talkgroup editors, or reload workflows without knowing exactly how HBLink stores config, what its files look like, how it handles reloads, and what data it exposes. Building first and discovering the structure later guarantees rework.
-
-**Independent Test**: HBLink containers are running. HBMonv2 dashboard is accessible. Log output is visible. Config files are located and readable.
-
-**What gets installed**:
-- HBLink3 — core DMR linking server, running as Docker container `hblink` managed by Docker Compose v2
-- HBMonv2 — monitoring dashboard (Python, systemd service `hbmon`), includes lastheard database with auto-configured cron jobs
-- Apache2, PHP, Python3, Docker (installer manages these)
-
-**Key paths after install**:
-
-| Path | Contents |
-|------|----------|
-| `/etc/hblink3/` | HBLink working directory — all config and compose files live here |
-| `/etc/hblink3/hblink.cfg` | Main HBLink configuration (INI-style) |
-| `/etc/hblink3/rules.py` | Talkgroup routing rules (Python dict/list) |
-| `/etc/hblink3/docker-compose.yml` | Container orchestration |
-| `/opt/HBMonv2/` | HBMonv2 installation |
-| `/opt/HBMonv2/venv/` | HBMonv2 Python virtual environment |
-| `/var/log/hblink/hblink.log` | HBLink log file |
-
-**Control commands installed**:
-
-| Command | Effect |
-|---------|--------|
-| `hblink-start` | Start HBLink containers |
-| `hblink-stop` | Stop HBLink containers |
-| `hblink-restart` | Restart HBLink containers |
-| `hblink-menu` | Interactive management menu |
-| `hblink-update` | Pull latest Docker image and restart |
-| `docker compose up -d` (in `/etc/hblink3/`) | Direct Docker Compose control |
-| `systemctl start\|stop\|restart hbmon` | HBMonv2 service control |
-
-**Ports used by HBLink**:
-
-| Port | Protocol | Purpose |
-|------|----------|---------|
-| 62030–62031 | UDP | MMDVM connections |
-| 62032–62050 | UDP | OpenBridge (OBP) connections |
-| 4321 | TCP | HBLink report socket |
-| 9000 | UDP | HBMonv2 WebSocket |
-| 80 | TCP | Apache (HBMonv2 web UI) |
-
-**⚠️ Apache conflict**: The HBLink installer installs its own Apache2 and configures it to serve HBMonv2. CFLAG DMR also runs on Apache. Both must coexist on the same server — virtual host configuration will be required to separate HBMonv2 and CFLAG DMR on the same Apache instance. This must be resolved during P0 before CFLAG DMR Apache config is changed.
-
-**Acceptance Scenarios**:
-
-1. **Given** the installer has run, **When** I run `docker compose ps` in `/etc/hblink3/`, **Then** the `hblink` container is listed as running.
-2. **Given** HBLink is running, **When** I check `/var/log/hblink/hblink.log`, **Then** the log shows HBLink started without fatal errors.
-3. **Given** HBMonv2 is installed, **When** I run `systemctl status hbmon`, **Then** the service is active and running.
-4. **Given** both services are running, **When** I open HBMonv2 in a browser, **Then** the monitoring dashboard loads.
-5. **Given** both services are running, **When** I read `/etc/hblink3/hblink.cfg`, **Then** I can identify the stanza structure, master configuration, peer definitions, and the Parrot section.
-6. **Given** both services are running, **When** I read `/etc/hblink3/rules.py`, **Then** I can identify how talkgroup routing rules are defined and structured.
-7. **Given** the analysis is complete, **Then** a written analysis document exists covering: config file formats, rules file format, log format, lastheard database format and location, reload mechanism, directory structure, and any integration points relevant to CFLAG DMR features F2–F8.
+The platform also has **public-facing pages** visible without login: network status, node information, and general information for prospective users.
 
 ---
 
-### F1: Admin Authentication (Priority: P1) — after P0
+## Architecture Decisions (Open)
 
-Admins must be able to securely log in and out. All management pages are protected and require authentication.
+These decisions must be made before the affected features can be designed. They are flagged here so they are resolved explicitly rather than discovered mid-implementation.
 
-**Prerequisite**: P0 (HBLink installed and verified). Admin login does not depend on HBLink technically, but it will be built on the same server post-P0 so the environment is confirmed stable before any CFLAG DMR code is written.
+### AD-1: Database-driven config and HBLink restart strategy
 
-**Why this priority**: Every other feature depends on this. No admin functionality is accessible without it.
+**Context**: The goal is to store all network configuration (talkgroups, peers, routing rules) in a database and avoid manual file edits. HBLink reads `hblink.cfg` and `rules.py` only at startup — there is no SIGHUP or runtime reload mechanism.
 
-**Independent Test**: An admin can log in with valid credentials and reach the dashboard. Visiting any protected page while logged out redirects to the login page. Logging out destroys the session.
+**Options**:
+- **A (recommended short-term)**: Database is the source of truth. When changes are applied, CFLAG generates `hblink.cfg` and `rules.py` from the database and performs a fast restart (~5s). With multi-node architecture, other nodes carry traffic during a single node restart.
+- **B**: Fork/extend the HBLink container to read routing rules from the database at runtime (hot reload, no restart needed). Requires maintaining a modified Docker image.
+- **C (long-term)**: Build a native CFLAG DMR bridge that replaces HBLink entirely, reading from the database natively.
 
-**Acceptance Scenarios**:
+**Recommendation**: Option A for the near term. Design the database schema to be engine-agnostic (Option C compatible) so the bridge can be swapped later.
 
-1. **Given** I am a logged-out admin, **When** I visit any `/admin/` page, **Then** I am redirected to the login page with no privileged content shown.
-2. **Given** I am on the login page, **When** I submit valid credentials, **Then** I am redirected to the admin dashboard.
-3. **Given** I am on the login page, **When** I submit invalid credentials (wrong password, nonexistent username, or disabled account), **Then** I see a single generic error message and no information about which condition failed.
-4. **Given** I am logged in, **When** I click log out, **Then** my session is fully destroyed and I am redirected to the login page.
-5. **Given** my session has just been destroyed, **When** I visit `/admin/`, **Then** I am redirected to the login page and cannot access any protected content.
+### AD-2: Per-hotspot authentication
 
-**Feature spec**: [specs/001-admin-login/plan.md](../001-admin-login/plan.md)
+**Context**: Users should get a unique credential for their hotspot/repeater. HBLink's MASTER section uses a single shared passphrase for all peers — it has no per-peer authentication.
 
----
+**Options**:
+- **A**: CFLAG runs a UDP proxy in front of HBLink that handles per-peer authentication using credentials from the database, then forwards authenticated traffic using the master passphrase.
+- **B**: Accept a shared network passphrase for HBLink MMDVM connections. Per-peer access control is enforced by enable/disable status in the database (enabled peers are included in the generated config; disabled peers are excluded). Users still register and get "their" credentials, but the underlying passphrase is network-wide.
+- **C**: Use OpenBridge (OBP) connections for server-to-server links, which do have individual passphrases, while hotspots use the shared MMDVM passphrase.
 
-### F2: HBLink Configuration Visibility (Priority: P2) — NEXT
+**Recommendation**: Option B for MMDVM hotspot connections. Peer enable/disable (included/excluded from generated config) provides effective access control without a proxy layer. Revisit Option A if per-peer passphrase isolation becomes a hard requirement.
 
-Admins can view the current HBLink master configuration and routing rules in a safe, read-only display inside the dashboard — without needing SSH access to the server.
+### AD-3: Public vs. authenticated page boundaries
 
-**Why this priority**: Visibility is the foundation of control. Admins need to understand the current server state before making any changes. Read-only display carries no risk of misconfiguration.
+**Context**: Some pages should be publicly visible (network status, last-heard, node info). Others require login (admin functions). Others require a registered user account (profile, hotspot management, messaging).
 
-**Independent Test**: An authenticated admin can navigate to a config viewer page and see the current HBLink master config and rules in a readable format. No editing is possible from this view.
-
-**Acceptance Scenarios**:
-
-1. **Given** I am logged in, **When** I visit the configuration viewer, **Then** I can see the current HBLink master configuration displayed in a structured, readable format.
-2. **Given** I am logged in, **When** I visit the rules viewer, **Then** I can see the current talkgroup routing rules in a readable format.
-3. **Given** I am logged in, **When** I view either config page, **Then** no editing controls are present — the view is strictly read-only.
-4. **Given** I am not logged in, **When** I visit any config viewer URL directly, **Then** I am redirected to the login page.
-5. **Given** the HBLink config file is missing or unreadable, **When** I visit the config viewer, **Then** I see a clear error message rather than a blank or broken page.
+**Decision needed**: Define the three tiers explicitly:
+1. **Public** (no login): Network status dashboard, last-heard activity, node list, registration page
+2. **Registered user** (logged-in user account): Profile, hotspot management, talkgroup subscriptions, messaging
+3. **Moderator** (elevated user): Mute/ban request tools, moderation log
+4. **Admin** (system admin account): Full config, user management, talkgroup approval, theming, server management
 
 ---
 
-### F3: Peer and Hotspot Management (Priority: P3)
+## Feature Delivery Status
 
-Admins can view all configured peers and hotspots, see their status, and enable or disable them from the dashboard.
-
-**Why this priority**: Peer management is the most common day-to-day administrative action. Admins currently need SSH and manual file edits to change peer status.
-
-**Independent Test**: An authenticated admin can view the full peer list, toggle a peer's enabled/disabled status, and verify the change persists to the configuration file without any SSH access.
-
-**Acceptance Scenarios**:
-
-1. **Given** I am logged in, **When** I visit the peer management page, **Then** I see a list of all configured peers and hotspots with their callsign, mode, and current enabled/disabled status.
-2. **Given** I am viewing the peer list, **When** I disable a peer, **Then** the peer's status changes to disabled, the change is written to the configuration in a structured way, and I receive confirmation.
-3. **Given** I am viewing the peer list, **When** I enable a disabled peer, **Then** the peer's status changes to enabled and the change is written to the configuration.
-4. **Given** a peer status change has been saved, **When** I reload the peer list, **Then** the change is reflected accurately.
-5. **Given** the configuration file is not writable, **When** I attempt to change a peer's status, **Then** I see a clear error message and the configuration is not partially modified.
-
-**Edge cases**:
-- What if a peer's callsign contains special characters that could corrupt the config format? (Config writer must escape/sanitize output.)
-- What if two admins edit the same peer simultaneously? (Last write wins for this slice; no locking required in F3.)
-
----
-
-### F4: Talkgroup and Timeslot Management (Priority: P4)
-
-Admins can view, add, edit, and remove talkgroup routing rules from the dashboard. Changes are written to a staging state and require an explicit apply step before taking effect on the live server.
-
-**Why this priority**: Talkgroup routing is the core network function. Changes here have direct impact on radio traffic, so they must go through a deliberate apply step rather than taking immediate effect.
-
-**Independent Test**: An authenticated admin can view all routing rules, add a new rule, edit an existing rule, and remove a rule. None of these changes affect live routing until the admin explicitly applies them. After applying, the routing config reflects the changes.
-
-**Acceptance Scenarios**:
-
-1. **Given** I am logged in, **When** I visit talkgroup management, **Then** I see a list of all current routing rules showing talkgroup IDs, systems, and timeslots.
-2. **Given** I am viewing talkgroup rules, **When** I add a new rule with valid fields, **Then** the rule appears in the staged list but the live routing is not yet changed.
-3. **Given** I have staged changes, **When** I click "Apply Changes", **Then** the routing config file is updated with all staged changes and I receive confirmation.
-4. **Given** I have staged changes, **When** I click "Discard Changes", **Then** the staged changes are discarded and the current live rules are shown.
-5. **Given** I submit a talkgroup rule with an invalid or duplicate talkgroup ID, **When** I try to save, **Then** I see a validation error and the staged config is not changed.
+| ID | Feature Area | Status | Notes |
+|----|--------------|--------|-------|
+| P0 | HBLink + HBMonv2 Setup & Analysis | ✅ Complete | [spec](../002-hblink-setup/spec.md) |
+| F1 | Admin Authentication | ✅ Complete | [spec](../001-admin-login/plan.md) |
+| F2 | Role & Permission System | Not started | Blocks F3–F17 |
+| F3 | User Registration & Accounts | Not started | Depends on F2 |
+| F4 | User Profiles | Not started | Depends on F3 |
+| F5 | Hotspot & Repeater Registration | Not started | Depends on F3, AD-2 |
+| F6 | Talkgroup Management | Not started | Depends on F2, AD-1 |
+| F7 | Network Config & Peer Management | Not started | Depends on F2, AD-1 |
+| F8 | HBLink Config Visibility | Not started | Read-only, depends on F2 |
+| F9 | Last-Heard & Activity Log | Not started | Public + authenticated views |
+| F10 | Network Status Dashboard | Not started | Public-facing |
+| F11 | Moderation Tools | Not started | Depends on F2, F3 |
+| F12 | Node Management | Not started | Depends on F7, AD-1 |
+| F13 | Controlled Restart / Reload | Not started | Depends on F7, AD-1 |
+| F14 | Backup & Rollback | Not started | Depends on F13 |
+| F15 | Theming & Customization | Not started | Depends on F2 |
+| F16 | User Messaging | Not started | Depends on F3 |
+| F17 | Community Chat Channels | Not started | Depends on F3 |
+| F18 | Radio Programming Tools | Not started | Depends on F5 |
 
 ---
 
-### F5: Last-Heard and Activity Log (Priority: P5)
-
-Admins can view a recent last-heard list showing which callsigns have been active, on which talkgroup, timeslot, and system, and can filter the list.
-
-**Why this priority**: Last-heard visibility is a key operational tool for monitoring network health and verifying that radio traffic is flowing correctly.
-
-**Independent Test**: An authenticated admin can view a last-heard list that updates on page load, and can filter by callsign or talkgroup to find specific activity.
-
-**Acceptance Scenarios**:
-
-1. **Given** I am logged in, **When** I visit the last-heard page, **Then** I see a list of recent radio activity entries showing callsign, talkgroup, timeslot, system, and timestamp for each.
-2. **Given** I am viewing last-heard, **When** I filter by callsign, **Then** only entries matching that callsign are shown.
-3. **Given** I am viewing last-heard, **When** I filter by talkgroup, **Then** only entries for that talkgroup are shown.
-4. **Given** no recent activity has been ingested, **When** I visit last-heard, **Then** I see an empty state message rather than a blank page.
-5. **Given** I am not logged in, **When** I visit the last-heard URL directly, **Then** I am redirected to the login page.
-
-**Note**: The ingestion method (HBLink log parsing vs. structured data source) is to be determined during F5 feature planning after HBLink is studied.
+## Feature Descriptions
 
 ---
 
-### F6: Safer Configuration Editing (Priority: P6)
+### P0: HBLink + HBMonv2 Setup and Analysis ✅
 
-Admins can edit key HBLink configuration values through a structured form, with validation before saving and an automatic backup created on every save.
-
-**Why this priority**: Raw config file editing is error-prone. A structured form with validation reduces the risk of misconfiguration that could take the network offline.
-
-**Independent Test**: An authenticated admin can edit a key master config value through a form, see a validation error if the value is invalid, and upon successful save confirm that a backup of the previous config was automatically created.
-
-**Acceptance Scenarios**:
-
-1. **Given** I am logged in, **When** I visit the config editor, **Then** I see a structured form with current config values pre-populated.
-2. **Given** I change a value to something invalid, **When** I submit the form, **Then** I see a specific validation error and the config file is not changed.
-3. **Given** I submit valid changes, **When** the save completes, **Then** the config file is updated and a timestamped backup of the previous config is automatically created.
-4. **Given** a save has completed, **When** I re-open the config editor, **Then** the form shows the newly saved values.
-5. **Given** the config file is not writable, **When** I try to save, **Then** I see a clear error and neither the config nor any backup file is partially written.
+Complete. HBLink running in Docker at `/etc/hblink3/`. HBMonv2 running as systemd `hbmon`. Analysis committed at `specs/002-hblink-setup/analysis.md`. Both services accessible at `dmrdev.cflag.net`.
 
 ---
 
-### F7: Controlled Reload and Restart (Priority: P7)
+### F1: Admin Authentication ✅
 
-Admins can trigger an HBLink reload or restart from the dashboard after making configuration changes, and can see whether the operation succeeded or failed.
-
-**Why this priority**: Without a controlled reload mechanism, config changes made through the dashboard have no way to take effect on the live server without SSH access.
-
-**Independent Test**: An authenticated admin can trigger a reload, see a success or failure result, and verify the action was recorded in the audit log with their identity and a timestamp.
-
-**Acceptance Scenarios**:
-
-1. **Given** I am logged in, **When** I trigger a reload, **Then** the HBLink process receives the reload signal and I see a success or failure status within a reasonable time.
-2. **Given** a reload has been triggered, **When** I view the audit log, **Then** I can see the reload action, the admin who triggered it, and the timestamp.
-3. **Given** the reload fails (process not running, permission denied, etc.), **When** the result is displayed, **Then** I see a clear failure message rather than a false success confirmation.
-4. **Given** I am not logged in, **When** I attempt to reach the reload endpoint directly, **Then** I am redirected to the login page and no action is taken.
+Complete. Admins log in at `/login.php`, session auth via MariaDB, protected `/admin/` dashboard, logout destroys session. CSRF protection, bcrypt passwords, cookie hardening.
 
 ---
 
-### F8: Backup and Rollback (Priority: P8)
+### F2: Role & Permission System
 
-Admins can view a list of configuration backups, download a backup for review, and restore a previous backup — which replaces the active config and requires a reload to take effect.
+Defines the permission tiers used by every subsequent feature. Must be built before any feature that requires checking what a logged-in user is allowed to do.
 
-**Why this priority**: Backup and rollback is the safety net for all config editing features (F6). It allows recovery from mistakes without SSH access.
+**Roles**:
+- `system_admin` — full access to everything
+- `moderator` — can mute and submit ban requests; cannot change config
+- `user` — registered network user; can manage own profile, hotspots, and talkgroup subscriptions
 
-**Independent Test**: An authenticated admin can view the backup list, select a previous backup, restore it, and verify the active config now matches the restored backup.
-
-**Acceptance Scenarios**:
-
-1. **Given** I am logged in, **When** I visit the backup page, **Then** I see a list of available backups with their timestamps and which config they cover.
-2. **Given** I select a backup and choose "Restore", **When** the restore completes, **Then** the active config file is replaced with the backup contents and I receive confirmation.
-3. **Given** a backup has been restored, **When** I view the config editor or viewer, **Then** it reflects the restored values.
-4. **Given** the backup directory is empty, **When** I visit the backup page, **Then** I see an informative empty-state message.
-5. **Given** a backup file has been corrupted or is unreadable, **When** it appears in the list, **Then** it is clearly marked as unrestorable and cannot be selected.
-6. **Given** backup files exist on disk, **When** I attempt to access the backup directory via the browser (direct URL), **Then** I receive a 403 or 404 — backups are not web-accessible.
+**Requirements**:
+- Role stored on the user account
+- Role checked on every protected endpoint; wrong role → 403 or redirect
+- Admins can assign and change roles
+- All current admin_users are `system_admin` role by default
 
 ---
 
-### Edge Cases (cross-cutting)
+### F3: User Registration & Accounts
 
-- What if an admin's session expires mid-operation (form submit, reload trigger, restore)? The server-side action should be rejected and the admin should be redirected to the login page.
-- What if two admins are editing configuration simultaneously? For the current scope, last write wins. Concurrent editing conflicts are not handled in this phase.
-- What if a config file grows very large? Display should paginate or truncate with a clear indicator rather than timing out.
-- What if HBLink is not running when a reload is triggered? The system must report the failure clearly and not hang.
+A public registration form where licensed amateur radio operators can create a user account.
 
----
-
-## Requirements
-
-### Functional Requirements
-
-- **FR-001**: All management pages MUST be inaccessible to unauthenticated visitors; any unauthenticated request MUST redirect to the login page.
-- **FR-002**: Login MUST use username/password credentials validated against a stored admin account.
-- **FR-003**: Login failures MUST always produce a single generic message with no detail about which condition failed.
-- **FR-004**: Sessions MUST be fully destroyed on logout, including clearing the session cookie.
-- **FR-005**: The system MUST display HBLink master configuration and routing rules in a read-only formatted view.
-- **FR-006**: The system MUST display a list of configured peers/hotspots with their enabled/disabled status.
-- **FR-007**: Admins MUST be able to toggle peer/hotspot enabled status; changes MUST be written to the config file in a structured, sanitized format.
-- **FR-008**: Talkgroup routing rule changes MUST be staged before applying; staged changes MUST NOT affect live routing until explicitly applied.
-- **FR-009**: The system MUST display a last-heard activity list and MUST support filtering by callsign and talkgroup.
-- **FR-010**: Structured config editing MUST validate values before saving; invalid values MUST be rejected with a specific error.
-- **FR-011**: Every config save MUST automatically create a timestamped backup of the previous config before overwriting.
-- **FR-012**: Admins MUST be able to trigger an HBLink reload or restart from the dashboard.
-- **FR-013**: Every reload/restart action MUST be recorded in an audit log with the acting admin's identity and a timestamp.
-- **FR-014**: Admins MUST be able to view available backups, restore a previous backup, and see confirmation that the restore succeeded.
-- **FR-015**: Backup files MUST be stored outside the web-accessible directory and MUST NOT be directly retrievable via browser URL.
-- **FR-016**: All admin-supplied values rendered to any page MUST be HTML-escaped before display.
-- **FR-017**: All database queries MUST use parameterized statements; no user input may be interpolated into query strings.
-
-### Key Entities
-
-- **Admin account**: An operator authorized to log in. Has username, hashed password, display name, active/inactive status, last login timestamp.
-- **Admin session**: Tracks an authenticated admin's identity during a browser session. Destroyed on logout or inactivity expiry.
-- **Peer / Hotspot**: A DMR network node configured in HBLink. Has callsign, mode, enabled/disabled status, and associated config attributes. Stored in HBLink config files; managed via the dashboard.
-- **Talkgroup routing rule**: Maps a talkgroup ID to one or more systems and timeslots. Stored in the HBLink rules file; managed via staged editing.
-- **Activity log entry** (last-heard): A record of a radio transmission event: callsign, talkgroup, timeslot, system, start time, duration. Source is HBLink logs or a derived data store.
-- **Configuration backup**: A timestamped copy of a config file created automatically before any save. Stored in a protected directory.
-- **Audit log entry**: A record of an admin action (reload, restore, config edit). Includes actor identity, action type, timestamp, and outcome.
+**Requirements**:
+- Registration collects: callsign (required, used as username), email, password, display name
+- Callsign must be unique in the system
+- Email verified before account is activated (or manual activation by admin — TBD)
+- Admins can manually create, activate, suspend, and delete accounts
+- Users can log in at `/login.php` (same form as admins, role determines what they see)
+- Suspended accounts cannot log in; generic error shown
 
 ---
 
-## Success Criteria
+### F4: User Profiles
 
-### Measurable Outcomes
+Registered users have a profile page viewable by other logged-in users.
 
-- **SC-001**: An admin can complete the login flow in under 30 seconds on a standard device.
-- **SC-002**: All protected pages redirect unauthenticated visitors within one page load — no partial content is shown before redirect.
-- **SC-003**: An admin can view the current HBLink config and peer list without any SSH access to the server.
-- **SC-004**: Peer enable/disable changes are reflected in the configuration within 5 seconds of confirmation.
-- **SC-005**: Talkgroup rule changes take effect on the live server only after an explicit apply action — accidental immediate application is not possible.
-- **SC-006**: Every config save produces a restorable backup — zero data-loss scenarios from a single failed save.
-- **SC-007**: A reload action produces a visible success or failure result within 15 seconds.
-- **SC-008**: An admin can restore a previous configuration backup and apply it to the live server without SSH access.
-- **SC-009**: All audit-logged actions (reloads, restores, config edits) are traceable to a specific admin and timestamp within the dashboard.
-- **SC-010**: No configuration backup file is accessible via a direct browser URL — verified by attempting a GET request to the backup path.
+**Requirements**:
+- Profile includes: callsign, display name, avatar (uploaded image), bio (free text), optional contact links (QRZ, email)
+- User controls visibility of contact details (public to all users / hidden)
+- Profile shows: account creation date, last login to website, last heard on network (callsign activity)
+- User can edit their own profile
+- Admins can view and edit any profile
 
 ---
 
-## Assumptions
+### F5: Hotspot & Repeater Registration
 
-- Admin accounts are created manually (or via a future admin management feature); no self-registration exists.
-- HBLink is installed via [ShaYmez/hblink3-docker-install](https://github.com/ShaYmez/hblink3-docker-install) on the same server as CFLAG DMR. HBLink runs as a Docker container; config files live at `/etc/hblink3/`.
-- HBLink configuration files use a known, stable format — INI-style for `hblink.cfg`, Python dict/list for `rules.py`. Exact parsing strategy confirmed during P0 analysis.
-- The HBLink installer installs its own Apache2 instance. CFLAG DMR also runs on Apache. Both must share the same Apache process via virtual hosts — this coexistence will be configured during P0 before any CFLAG DMR Apache config is changed.
-- HBLink is reloaded/restarted via `hblink-restart` (shell command) or `docker compose restart` from `/etc/hblink3/`. The web process must have permission to invoke these — method to be confirmed during P0.
-- The last-heard data is provided by HBMonv2's lastheard database (format and location confirmed during P0 analysis). Direct log parsing is a fallback if the database format is unsuitable.
-- The dashboard is HTTP-only in the development environment; HTTPS will be enabled in production. Cookie security settings are environment-controlled.
-- A single admin role is sufficient for the current scope. No read-only vs. read-write distinction between admin accounts.
-- The system will be used by a small number of admins (under 10 concurrent sessions). No high-traffic scaling considerations are required.
-- All admin operators are licensed amateur radio operators operating within their legal authority. The system does not need to enforce licensing checks.
+Registered users can add their hotspots and repeaters to the network, manage device settings, and choose talkgroup assignments.
+
+**Requirements**:
+- User submits: device callsign, device type (hotspot / repeater), hardware description
+- On approval (by admin or auto-approve policy), the device gets a network connection credential
+- With AD-2 Option B: approved devices are added to the generated hblink.cfg (as enabled peers); disabled devices are excluded from the next generated config
+- User can manage per-device talkgroup subscriptions: add/remove static talkgroups, set dynamic talkgroup timeout (minutes)
+- User can view their own device's connection status (connected / not connected) pulled from HBLink report socket
 
 ---
 
-## Out of Scope (Current Phase)
+### F6: Talkgroup Management
 
-The following are explicitly excluded from this product scope and must not be designed into any current feature:
+Admins manage the canonical list of talkgroups. Users can request new talkgroups. Admins approve or deny requests.
 
-- Public-facing registration or self-service hotspot enrollment
-- Rewriting or replacing HBLink (CFLAG DMR manages HBLink, it does not replace it)
-- Role-based access control beyond simple admin/non-admin (all admins have equal access)
-- Email notifications or external alerting integrations
-- Mobile application
-- Multi-server or multi-network management (single HBLink instance only)
-- Automated certificate or TLS management
+**Requirements**:
+- Talkgroup record: ID (integer), name, description, type (open/private), owner (admin or user), active status
+- **Open talkgroups**: any registered user can subscribe their device
+- **Private talkgroups**: users must request access; owner/admin approves
+- **Whitelist/Blacklist**: admins can explicitly allow or deny specific callsigns on any talkgroup
+- New talkgroup requests submitted by users → enter pending queue → admin approves with final TGID assignment
+- Admins can create, edit, disable, and delete talkgroups directly
 
 ---
 
-## Feature Delivery Order
+### F7: Network Config & Peer Management
 
-| Step | ID | Feature | Rationale |
-|------|----|---------|-----------| 
-| 0 | P0 | HBLink + HBMonv2 Setup & Analysis | Must be done first. Installs the system we are managing and produces the analysis that informs every feature from F2 onward. |
-| 1 | F1 | Admin Authentication | Foundation for all dashboard features. Specced and planned — ready to build once P0 is complete. |
-| 2 | F2 | HBLink Configuration Visibility | Read-only config display. Low risk, high value. Directly informed by P0 analysis of `hblink.cfg` and `rules.py` formats. |
-| 3 | F3 | Peer and Hotspot Management | Most common admin action. Depends on F2's understanding of config file structure to write changes safely. |
-| 4 | F4 | Talkgroup and Timeslot Management | Higher-complexity writes to `rules.py`. Depends on F3 patterns for staged config changes. |
-| 5 | F5 | Last-Heard and Activity Log | Depends on P0 analysis of HBMonv2's lastheard database format and location. Independent of F3/F4. |
-| 6 | F6 | Safer Configuration Editing | Structured form editing of `hblink.cfg`. Depends on F2 config understanding; higher-risk writes. |
-| 7 | F7 | Controlled Reload and Restart | Wraps `hblink-restart` or `docker compose restart`. Depends on F6 (reload needed after config edits). |
-| 8 | F8 | Backup and Rollback | Manages backups created by F6 saves. Depends on F6 and F7. |
+Admins manage the full network configuration: master settings, peer settings, OpenBridge connections. All changes stored in the database and applied by generating config files.
+
+**Requirements**:
+- Config stored in database (not edited as raw files)
+- Changes are staged and applied together via an explicit "Apply & Restart" action
+- Generated `hblink.cfg` and `rules.py` are written from database state on apply
+- Admins can view current live config (read-only view of what is actually running) and pending staged config
+- Diff view shows what will change before applying
+
+---
+
+### F8: HBLink Config Visibility
+
+Read-only display of the currently running HBLink config and routing rules. No editing. Based on the generated files in `/etc/hblink3/`.
+
+**Requirements**:
+- Structured display of all `[SECTION]` blocks in `hblink.cfg`
+- Structured display of all bridges in `rules.py`
+- Shows what is currently running, not the staged/pending DB state
+- Requires admin login
+
+---
+
+### F9: Last-Heard & Activity Log
+
+Displays recent radio transmission activity. Public view (limited) and authenticated view (full).
+
+**Requirements**:
+- Public view: last 20 entries — callsign, talkgroup name, time, duration
+- Authenticated view: full history with filters by callsign, talkgroup, system, time range
+- Source: `/opt/HBMonv2/log/lastheard.log` CSV (see analysis.md Section 4)
+- Ingested into database for queryability, or read directly from CSV for MVP
+- Auto-refreshes on authenticated view (polling or SSE)
+
+---
+
+### F10: Network Status Dashboard
+
+Public-facing dashboard showing live network health without requiring login.
+
+**Requirements**:
+- Shows: connected peers count, active talkgroups, recent last-heard (limited), node status
+- Pulls peer/system state from HBLink report socket (port 4321) via a PHP intermediary
+- Branded with the customizable theme (see F15)
+- No sensitive config or user data exposed
+
+---
+
+### F11: Moderation Tools
+
+Moderators and admins can take action against problematic traffic sources.
+
+**Requirements**:
+- **Mute 1hr / 3hr / 6hr / 24hr**: Excludes the targeted peer/callsign from the generated config for the duration. Automatically re-enabled when the timer expires (cron job regenerates config + restart)
+- **Request Ban**: Moderator submits a ban request with reason and evidence. Goes to admin queue for approval. Approved bans permanently disable the peer account until an admin reverses it
+- **Mute/ban log**: All moderation actions recorded with actor, target, reason, timestamp, and outcome
+- Moderators can only request bans — they cannot directly ban. Admins approve or deny ban requests.
+- All moderation actions are visible to all moderators and admins (not to regular users)
+
+---
+
+### F12: Node Management
+
+Admins manage the multi-node network: register other CFLAG DMR nodes, configure inter-node linking, and monitor node health.
+
+**Requirements**:
+- A node is a CFLAG DMR + HBLink server instance
+- Nodes can be linked via OpenBridge (OBP) connections between their HBLink instances
+- Admin can add, configure, enable/disable, and remove inter-node links
+- Node status dashboard shows each node's online/offline status, connected peer count, and last contact time
+- Node linking configuration generates the `[OBP-*]` sections in the generated `hblink.cfg`
+
+---
+
+### F13: Controlled Restart / Reload
+
+Admins can apply pending configuration changes, which generates config files and triggers an HBLink restart from the dashboard.
+
+**Requirements**:
+- "Apply & Restart" action: generates `hblink.cfg` and `rules.py` from database → writes to `/etc/hblink3/` → runs `hblink-restart` via sudo
+- Admin sees live output / status result (success or failure) within 15 seconds
+- Action is recorded in audit log with actor, timestamp, and outcome
+- Before applying, a diff is shown: what will change vs what is currently running
+- Pre-apply backup of current config files is created automatically
+
+---
+
+### F14: Backup & Rollback
+
+Admins can view config backups, inspect them, and restore a previous state.
+
+**Requirements**:
+- Backups stored outside web root, not directly accessible via browser
+- Each apply action creates a timestamped backup before writing new files
+- Backup list shows timestamp, config version, and who triggered the apply
+- Admins can restore any backup (writes restored files + triggers restart)
+- Backup files are not stored in git
+
+---
+
+### F15: Theming & Customization
+
+System admins can customize the visual appearance of the site.
+
+**Requirements**:
+- Built-in theme presets (e.g., dark blue, dark orange, dark green)
+- Custom color overrides for key UI elements: primary color, accent color, background, card color, text color
+- Theme is applied site-wide (public and authenticated pages)
+- Custom CSS variables stored in database, injected into page `<style>` on render
+- Live preview in the admin theme editor before saving
+- Theme changes take effect immediately without restart
+
+---
+
+### F16: User Messaging
+
+Registered users can send direct messages to other registered users.
+
+**Requirements**:
+- User-to-user private messages
+- Inbox / sent views
+- Unread message count indicator in nav
+- Users can block messages from specific users
+- No file attachments in direct messages (text only for MVP)
+- Admins can view any message thread (moderation capability)
+
+---
+
+### F17: Community Chat Channels
+
+Discord-style chat channels for community communication.
+
+**Requirements**:
+- Multiple named channels (e.g., #general, #technical-help, #net-announcements)
+- Admins can create, rename, archive channels; set per-channel permission level (public / registered users only / moderators only)
+- Messages: text, inline images (uploaded), file attachments (with size limit)
+- Messages are persistent (stored in database)
+- Real-time delivery via polling or WebSocket
+- Users can be muted in chat independently of DMR network mutes
+- Message moderation: admins and moderators can delete messages; deleted messages show "[deleted]" placeholder
+
+---
+
+### F18: Radio Programming Tools
+
+Helps users configure their radios and hotspots to connect to the network.
+
+**Requirements**:
+- Hotspot config generator: user selects their device type (Pi-Star, MMDVM, etc.) and the tool outputs the exact connection settings (server IP, port, passphrase, color code, slot)
+- Radio codeplug guide: per-device instructions for programming a radio to access the network's talkgroups
+- Contact list export: downloadable CSV/JSON of active talkgroups and their IDs, suitable for importing into radio programming software
+- Settings shown are pulled from live network config (correct talkgroup IDs, server address)
+
+---
+
+## Database Schema Areas (high-level)
+
+The following entities will live in the CFLAG DMR MariaDB database. Detailed schemas are defined per feature spec.
+
+| Entity group | Tables | Notes |
+|---|---|---|
+| Users & auth | `users`, `user_sessions`, `roles` | Replaces/extends `admin_users` |
+| Devices | `devices`, `device_talkgroups` | Hotspots and repeaters |
+| Talkgroups | `talkgroups`, `talkgroup_acl`, `talkgroup_requests` | |
+| Network config | `masters`, `peers`, `obp_links`, `bridges`, `bridge_systems` | DB-driven HBLink config |
+| Moderation | `mod_actions`, `ban_requests` | |
+| Node management | `nodes`, `node_links` | Multi-node support |
+| Messaging | `messages`, `message_threads` | |
+| Chat | `chat_channels`, `chat_messages` | |
+| Config backups | `config_backups` | Metadata only; files on disk |
+| Audit log | `audit_log` | All admin/mod actions |
+| Theming | `theme_settings` | Color vars, active preset |
+
+---
+
+## Key Architectural Principles
+
+- **Database is the source of truth.** HBLink config files are generated artifacts, not the canonical store. The database drives everything.
+- **Engine-agnostic design.** The CFLAG control plane should not be tightly coupled to HBLink internals. Data models should be expressible in terms of DMR concepts (masters, peers, talkgroups, bridges), not HBLink-specific file formats.
+- **Node-based architecture.** Each CFLAG DMR + HBLink server is a node. Nodes are independently manageable. Inter-node linking is via OBP. Restarting one node does not take down the whole network.
+- **No public exposure of server internals.** Config details, passphrase values, and internal IP addresses are never shown in public-facing pages.
+- **Plain PHP, no framework.** All server-side code is plain PHP 8.x with PDO. No Composer dependencies. No front-end build tools beyond plain CSS.
+
+---
+
+## Feature Delivery Order (Proposed)
+
+| Phase | ID | Feature | Rationale |
+|-------|----|---------|-|
+| 1 | F2 | Role & Permission System | Foundation for every feature that has access control |
+| 2 | F3 | User Registration & Accounts | User accounts unlock hotspot management, profiles, messaging |
+| 3 | F4 | User Profiles | Natural extension of user accounts |
+| 4 | F5 | Hotspot & Repeater Registration | Core network function; enables self-service onboarding |
+| 5 | F6 | Talkgroup Management | Manage what talkgroups exist before configuring routing |
+| 6 | F7 | Network Config & Peer Management | DB-driven config; generates HBLink files |
+| 7 | F8 | HBLink Config Visibility | Read-only view of running config; lower priority once F7 exists |
+| 8 | F9 | Last-Heard & Activity Log | Public + authenticated views |
+| 9 | F10 | Network Status Dashboard | Public-facing; depends on F9 for activity data |
+| 10 | F11 | Moderation Tools | Depends on F2 (roles) and F3 (user accounts) |
+| 11 | F12 | Node Management | Multi-node linking; depends on F7 config patterns |
+| 12 | F13 | Controlled Restart / Reload | Apply DB config to HBLink; depends on F7 |
+| 13 | F14 | Backup & Rollback | Depends on F13 |
+| 14 | F15 | Theming & Customization | Can be done in parallel with any feature |
+| 15 | F16 | User Messaging | Depends on F3 |
+| 16 | F17 | Community Chat Channels | Depends on F3 |
+| 17 | F18 | Radio Programming Tools | Depends on F5 (device data) and F6 (talkgroup data) |
+
+---
+
+## Open Questions
+
+| # | Question | Blocks |
+|---|----------|--------|
+| OQ-1 | AD-2: Per-hotspot auth — shared passphrase + enable/disable, or proxy layer? | F5, F7 |
+| OQ-2 | AD-3: Email verification on registration, or admin-activated accounts? | F3 |
+| OQ-3 | Should the public last-heard page show callsigns, or only talkgroup activity? (privacy consideration) | F9, F10 |
+| OQ-4 | Is there a public-facing "about this network" page, or is the dashboard the home page? | F10 |
+| OQ-5 | Does the chat (F17) need real-time delivery for MVP, or is 30-second polling acceptable? | F17 |
+| OQ-6 | What file size limit applies to chat attachments (F17)? | F17 |
