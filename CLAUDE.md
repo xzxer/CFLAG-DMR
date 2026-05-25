@@ -1,7 +1,10 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/001-admin-login/plan.md
+at specs/002-hblink-setup/plan.md
+
+The current active phase is P0: HBLink + HBMonv2 setup and analysis (specs/002-hblink-setup/).
+Admin login (specs/001-admin-login/) is fully planned but not yet built — it follows after P0.
 <!-- SPECKIT END -->
 
 ## Current Architecture Direction

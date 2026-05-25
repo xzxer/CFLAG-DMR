@@ -18,8 +18,9 @@ This is the top-level product specification for CFLAG DMR. It defines the full s
 
 | ID | Feature Area | Status | Feature Spec |
 |----|--------------|--------|--------------|
-| F1 | Admin Authentication | In progress | [001-admin-login](../001-admin-login/plan.md) |
-| F2 | HBLink Configuration Visibility | Not started — next after F1 | — |
+| P0 | HBLink + HBMonv2 Setup & Analysis | Not started — **first** | — |
+| F1 | Admin Authentication | Specced, not yet built — after P0 | [001-admin-login](../001-admin-login/plan.md) |
+| F2 | HBLink Configuration Visibility | Not started — after P0 analysis | — |
 | F3 | Peer and Hotspot Management | Not started | — |
 | F4 | Talkgroup and Timeslot Management | Not started | — |
 | F5 | Last-Heard and Activity Log | Not started | — |
@@ -43,9 +44,74 @@ The system sits alongside HBLink — it reads HBLink configuration files, manage
 
 ---
 
-### F1: Admin Authentication (Priority: P1) — IN PROGRESS
+### P0: HBLink + HBMonv2 Setup and Analysis (Priority: P0) — DO FIRST
+
+Before any dashboard feature can be built, HBLink and its monitoring layer must be installed on the dev server and fully understood. This phase is a prerequisite for every subsequent feature — it produces the knowledge and verified environment that everything else depends on.
+
+**Installer**: [ShaYmez/hblink3-docker-install](https://github.com/ShaYmez/hblink3-docker-install) — a one-shot Bash script for Debian/Ubuntu that installs HBLink in Docker and HBMonv2 as a systemd service.
+
+**Why this priority**: CFLAG DMR is a management layer on top of HBLink. We cannot design config viewers, peer management, talkgroup editors, or reload workflows without knowing exactly how HBLink stores config, what its files look like, how it handles reloads, and what data it exposes. Building first and discovering the structure later guarantees rework.
+
+**Independent Test**: HBLink containers are running. HBMonv2 dashboard is accessible. Log output is visible. Config files are located and readable.
+
+**What gets installed**:
+- HBLink3 — core DMR linking server, running as Docker container `hblink` managed by Docker Compose v2
+- HBMonv2 — monitoring dashboard (Python, systemd service `hbmon`), includes lastheard database with auto-configured cron jobs
+- Apache2, PHP, Python3, Docker (installer manages these)
+
+**Key paths after install**:
+
+| Path | Contents |
+|------|----------|
+| `/etc/hblink3/` | HBLink working directory — all config and compose files live here |
+| `/etc/hblink3/hblink.cfg` | Main HBLink configuration (INI-style) |
+| `/etc/hblink3/rules.py` | Talkgroup routing rules (Python dict/list) |
+| `/etc/hblink3/docker-compose.yml` | Container orchestration |
+| `/opt/HBMonv2/` | HBMonv2 installation |
+| `/opt/HBMonv2/venv/` | HBMonv2 Python virtual environment |
+| `/var/log/hblink/hblink.log` | HBLink log file |
+
+**Control commands installed**:
+
+| Command | Effect |
+|---------|--------|
+| `hblink-start` | Start HBLink containers |
+| `hblink-stop` | Stop HBLink containers |
+| `hblink-restart` | Restart HBLink containers |
+| `hblink-menu` | Interactive management menu |
+| `hblink-update` | Pull latest Docker image and restart |
+| `docker compose up -d` (in `/etc/hblink3/`) | Direct Docker Compose control |
+| `systemctl start\|stop\|restart hbmon` | HBMonv2 service control |
+
+**Ports used by HBLink**:
+
+| Port | Protocol | Purpose |
+|------|----------|---------|
+| 62030–62031 | UDP | MMDVM connections |
+| 62032–62050 | UDP | OpenBridge (OBP) connections |
+| 4321 | TCP | HBLink report socket |
+| 9000 | UDP | HBMonv2 WebSocket |
+| 80 | TCP | Apache (HBMonv2 web UI) |
+
+**⚠️ Apache conflict**: The HBLink installer installs its own Apache2 and configures it to serve HBMonv2. CFLAG DMR also runs on Apache. Both must coexist on the same server — virtual host configuration will be required to separate HBMonv2 and CFLAG DMR on the same Apache instance. This must be resolved during P0 before CFLAG DMR Apache config is changed.
+
+**Acceptance Scenarios**:
+
+1. **Given** the installer has run, **When** I run `docker compose ps` in `/etc/hblink3/`, **Then** the `hblink` container is listed as running.
+2. **Given** HBLink is running, **When** I check `/var/log/hblink/hblink.log`, **Then** the log shows HBLink started without fatal errors.
+3. **Given** HBMonv2 is installed, **When** I run `systemctl status hbmon`, **Then** the service is active and running.
+4. **Given** both services are running, **When** I open HBMonv2 in a browser, **Then** the monitoring dashboard loads.
+5. **Given** both services are running, **When** I read `/etc/hblink3/hblink.cfg`, **Then** I can identify the stanza structure, master configuration, peer definitions, and the Parrot section.
+6. **Given** both services are running, **When** I read `/etc/hblink3/rules.py`, **Then** I can identify how talkgroup routing rules are defined and structured.
+7. **Given** the analysis is complete, **Then** a written analysis document exists covering: config file formats, rules file format, log format, lastheard database format and location, reload mechanism, directory structure, and any integration points relevant to CFLAG DMR features F2–F8.
+
+---
+
+### F1: Admin Authentication (Priority: P1) — after P0
 
 Admins must be able to securely log in and out. All management pages are protected and require authentication.
+
+**Prerequisite**: P0 (HBLink installed and verified). Admin login does not depend on HBLink technically, but it will be built on the same server post-P0 so the environment is confirmed stable before any CFLAG DMR code is written.
 
 **Why this priority**: Every other feature depends on this. No admin functionality is accessible without it.
 
@@ -258,11 +324,13 @@ Admins can view a list of configuration backups, download a backup for review, a
 ## Assumptions
 
 - Admin accounts are created manually (or via a future admin management feature); no self-registration exists.
-- The HBLink process runs on the same server as the CFLAG DMR web application and is accessible via filesystem paths and process signals.
-- HBLink configuration files use a known, stable format (INI-style for `hblink.cfg`, Python dict/list for `rules.py`) — parsing strategy will be confirmed during F2 feature planning.
+- HBLink is installed via [ShaYmez/hblink3-docker-install](https://github.com/ShaYmez/hblink3-docker-install) on the same server as CFLAG DMR. HBLink runs as a Docker container; config files live at `/etc/hblink3/`.
+- HBLink configuration files use a known, stable format — INI-style for `hblink.cfg`, Python dict/list for `rules.py`. Exact parsing strategy confirmed during P0 analysis.
+- The HBLink installer installs its own Apache2 instance. CFLAG DMR also runs on Apache. Both must share the same Apache process via virtual hosts — this coexistence will be configured during P0 before any CFLAG DMR Apache config is changed.
+- HBLink is reloaded/restarted via `hblink-restart` (shell command) or `docker compose restart` from `/etc/hblink3/`. The web process must have permission to invoke these — method to be confirmed during P0.
+- The last-heard data is provided by HBMonv2's lastheard database (format and location confirmed during P0 analysis). Direct log parsing is a fallback if the database format is unsuitable.
 - The dashboard is HTTP-only in the development environment; HTTPS will be enabled in production. Cookie security settings are environment-controlled.
 - A single admin role is sufficient for the current scope. No read-only vs. read-write distinction between admin accounts.
-- The last-heard data source (log file parsing vs. HBLink-provided data socket vs. other) will be determined during F5 feature planning after HBLink is studied.
 - The system will be used by a small number of admins (under 10 concurrent sessions). No high-traffic scaling considerations are required.
 - All admin operators are licensed amateur radio operators operating within their legal authority. The system does not need to enforce licensing checks.
 
@@ -284,13 +352,14 @@ The following are explicitly excluded from this product scope and must not be de
 
 ## Feature Delivery Order
 
-| Priority | Feature | Rationale |
-|----------|---------|-----------|
-| 1 | F1 Admin Authentication | Foundation for all other features |
-| 2 | F2 HBLink Configuration Visibility | Read-only, low risk, high operational value |
-| 3 | F3 Peer and Hotspot Management | Most common admin action; depends on F2 understanding of config format |
-| 4 | F4 Talkgroup and Timeslot Management | Higher complexity writes; depends on F3 patterns |
-| 5 | F5 Last-Heard and Activity Log | Requires HBLink log study; independent of F3/F4 |
-| 6 | F6 Safer Configuration Editing | Depends on F2 config understanding; higher-risk writes |
-| 7 | F7 Controlled Reload and Restart | Depends on F6 (reload needed after config edits) |
-| 8 | F8 Backup and Rollback | Depends on F6 (backups created by F6 saves) |
+| Step | ID | Feature | Rationale |
+|------|----|---------|-----------| 
+| 0 | P0 | HBLink + HBMonv2 Setup & Analysis | Must be done first. Installs the system we are managing and produces the analysis that informs every feature from F2 onward. |
+| 1 | F1 | Admin Authentication | Foundation for all dashboard features. Specced and planned — ready to build once P0 is complete. |
+| 2 | F2 | HBLink Configuration Visibility | Read-only config display. Low risk, high value. Directly informed by P0 analysis of `hblink.cfg` and `rules.py` formats. |
+| 3 | F3 | Peer and Hotspot Management | Most common admin action. Depends on F2's understanding of config file structure to write changes safely. |
+| 4 | F4 | Talkgroup and Timeslot Management | Higher-complexity writes to `rules.py`. Depends on F3 patterns for staged config changes. |
+| 5 | F5 | Last-Heard and Activity Log | Depends on P0 analysis of HBMonv2's lastheard database format and location. Independent of F3/F4. |
+| 6 | F6 | Safer Configuration Editing | Structured form editing of `hblink.cfg`. Depends on F2 config understanding; higher-risk writes. |
+| 7 | F7 | Controlled Reload and Restart | Wraps `hblink-restart` or `docker compose restart`. Depends on F6 (reload needed after config edits). |
+| 8 | F8 | Backup and Rollback | Manages backups created by F6 saves. Depends on F6 and F7. |
