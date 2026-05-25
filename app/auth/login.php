@@ -8,20 +8,15 @@ function attempt_login(string $username, string $password): bool
 {
     $db   = get_db();
     $stmt = $db->prepare(
-        'SELECT id, username, password_hash, display_name, is_active
-         FROM admin_users
+        'SELECT id, username, password_hash, display_name, moderation_state
+         FROM users
          WHERE username = ?'
     );
     $stmt->execute([$username]);
     $row = $stmt->fetch();
 
     if ($row === false) {
-        // Consume constant time to prevent username enumeration
         password_verify($password, '$2y$10$invalidhashpadding00000000000000000000000000000000000000');
-        return false;
-    }
-
-    if (!(bool) $row['is_active']) {
         return false;
     }
 
@@ -29,14 +24,17 @@ function attempt_login(string $username, string $password): bool
         return false;
     }
 
+    if ($row['moderation_state'] === 'suspended' || $row['moderation_state'] === 'banned') {
+        return false;
+    }
+
     session_regenerate_id(true);
 
-    $_SESSION['admin_id']           = (int) $row['id'];
-    $_SESSION['admin_username']     = $row['username'];
-    $_SESSION['admin_display_name'] = $row['display_name'];
-    $_SESSION['authenticated_at']   = time();
+    $_SESSION['user_id']      = (int) $row['id'];
+    $_SESSION['username']     = $row['username'];
+    $_SESSION['display_name'] = $row['display_name'];
 
-    $db->prepare('UPDATE admin_users SET last_login_at = NOW() WHERE id = ?')
+    $db->prepare('UPDATE users SET last_login_at = NOW() WHERE id = ?')
        ->execute([$row['id']]);
 
     return true;

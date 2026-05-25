@@ -6,7 +6,7 @@ require_once dirname(__DIR__) . '/app/auth/login.php';
 
 start_session();
 
-if (is_admin()) {
+if (is_logged_in()) {
     redirect('/admin/');
 }
 
