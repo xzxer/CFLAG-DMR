@@ -99,6 +99,87 @@ for f in migrations/*.sql; do
 done
 ```
 
+### Mail server (Postfix + OpenDKIM)
+
+```bash
+apt-get install -y postfix opendkim opendkim-tools
+```
+
+**Postfix** (`/etc/postfix/main.cf`) — key settings:
+
+```ini
+myhostname = mail.cflag.net
+mydomain   = cflag.net
+myorigin   = /etc/mailname          # contains "mail.cflag.net"
+inet_interfaces = loopback-only     # only accept mail from PHP on localhost
+inet_protocols  = ipv4
+mydestination   =                   # we only send, never receive
+local_transport = error:local delivery disabled
+relayhost =                         # direct delivery
+smtp_tls_security_level = may
+mynetworks = 127.0.0.0/8
+smtpd_relay_restrictions = permit_mynetworks, reject
+# milter lines added after OpenDKIM is running:
+milter_default_action = accept
+smtpd_milters     = unix:/var/spool/postfix/opendkim/opendkim.sock
+non_smtpd_milters = unix:/var/spool/postfix/opendkim/opendkim.sock
+```
+
+**OpenDKIM** — key setup steps:
+
+```bash
+# Generate 2048-bit key, selector "mail"
+mkdir -p /etc/opendkim/keys/cflag.net
+opendkim-genkey -b 2048 -d cflag.net -D /etc/opendkim/keys/cflag.net -s mail
+chown -R opendkim:opendkim /etc/opendkim/keys
+chmod 700 /etc/opendkim/keys/cflag.net
+chmod 600 /etc/opendkim/keys/cflag.net/mail.private
+
+# Socket directory (inside Postfix chroot)
+mkdir -p /var/spool/postfix/opendkim
+chown opendkim:postfix /var/spool/postfix/opendkim
+chmod 750 /var/spool/postfix/opendkim
+usermod -aG opendkim postfix
+```
+
+`/etc/opendkim/KeyTable`:
+```
+mail._domainkey.cflag.net  cflag.net:mail:/etc/opendkim/keys/cflag.net/mail.private
+```
+
+`/etc/opendkim/SigningTable`:
+```
+*@cflag.net  mail._domainkey.cflag.net
+```
+
+**Required DNS records** (add at your registrar):
+
+| Type | Name | Value |
+|------|------|-------|
+| A    | `mail` | `<server-ip>` |
+| MX   | `@`    | `mail.cflag.net` (priority 10) |
+| TXT  | `@`    | `v=spf1 ip4:<server-ip> mx ~all` |
+| TXT  | `mail._domainkey` | *(value from `/etc/opendkim/keys/cflag.net/mail.txt`)* |
+| TXT  | `_dmarc` | `v=DMARC1; p=quarantine; rua=mailto:admin@cflag.net` |
+
+**PTR / reverse DNS**: set in your VPS control panel — IP → `mail.cflag.net`.
+Without this, most mail servers will reject outbound mail.
+
+**VPS port 25**: most providers block outbound port 25 by default.
+Open a support ticket to have it removed before testing.
+
+**`.env` settings for local Postfix**:
+
+```ini
+EMAIL_DEV_MODE=false
+MAIL_HOST=localhost
+MAIL_PORT=25
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_FROM_ADDRESS=noreply@cflag.net
+MAIL_FROM_NAME=CFLAG DMR
+```
+
 ### Environment file
 
 Copy `.env.example` to `.env` and fill in all values before starting:
@@ -135,3 +216,10 @@ For production email, also set:
 - [ ] Apache vhost configured with correct `DocumentRoot` and `AllowOverride All`
 - [ ] `.env` populated from `.env.example`
 - [ ] Apache restarted after PHP extension install
+- [ ] `postfix` + `opendkim` + `opendkim-tools` installed
+- [ ] Postfix configured for loopback-only with DKIM milter
+- [ ] DKIM key pair generated in `/etc/opendkim/keys/cflag.net/`
+- [ ] PTR record set in VPS control panel (IP → `mail.cflag.net`)
+- [ ] DNS records added: A, MX, SPF TXT, DKIM TXT, DMARC TXT
+- [ ] VPS provider port 25 restriction removed
+- [ ] `postfix` and `opendkim` services enabled and running
