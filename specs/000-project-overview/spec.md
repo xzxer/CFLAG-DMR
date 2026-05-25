@@ -2,7 +2,7 @@
 
 **Feature Branch**: `dev` (project-level document; not feature-branch-scoped)
 
-**Created**: 2026-05-24 | **Last Updated**: 2026-05-25
+**Created**: 2026-05-24 | **Last Updated**: 2026-05-25 (decisions resolved from handoff doc + user clarifications)
 
 **Status**: Active — canonical product scope reference
 
@@ -28,41 +28,60 @@ The platform also has **public-facing pages** visible without login: network sta
 
 ---
 
-## Architecture Decisions (Open)
+## Architecture Decisions — RESOLVED
 
-These decisions must be made before the affected features can be designed. They are flagged here so they are resolved explicitly rather than discovered mid-implementation.
+All three open architecture decisions have been resolved as of 2026-05-25.
 
-### AD-1: Database-driven config and HBLink restart strategy
+### AD-1: Database-driven config ✅ RESOLVED
 
-**Context**: The goal is to store all network configuration (talkgroups, peers, routing rules) in a database and avoid manual file edits. HBLink reads `hblink.cfg` and `rules.py` only at startup — there is no SIGHUP or runtime reload mechanism.
+**Decision**: Database is the source of truth for all network configuration. HBLink config files (`hblink.cfg`, `rules.py`) are generated artifacts written from the database at apply time, followed by a fast HBLink restart (~5s).
 
-**Options**:
-- **A (recommended short-term)**: Database is the source of truth. When changes are applied, CFLAG generates `hblink.cfg` and `rules.py` from the database and performs a fast restart (~5s). With multi-node architecture, other nodes carry traffic during a single node restart.
-- **B**: Fork/extend the HBLink container to read routing rules from the database at runtime (hot reload, no restart needed). Requires maintaining a modified Docker image.
-- **C (long-term)**: Build a native CFLAG DMR bridge that replaces HBLink entirely, reading from the database natively.
+**Rationale**: HBLink has no runtime reload. With a multi-node architecture, one node restarting while others handle traffic gives effectively zero user-visible downtime. The database schema must be engine-agnostic so the DMR engine can be swapped in the future without a schema rewrite.
 
-**Recommendation**: Option A for the near term. Design the database schema to be engine-agnostic (Option C compatible) so the bridge can be swapped later.
+**Long-term direction**: Eventually build or adopt a CFLAG-native DMR bridge that reads routing rules from the database natively, eliminating the restart requirement entirely. HBLink remains the engine for now.
 
-### AD-2: Per-hotspot authentication
+**Constraint noted from handoff**: The network MMDVM passphrase must be kept short (under 16 characters, simple alphanumeric). The test server's long base64 passphrase was incompatible with openSPOT4 Pro and similar devices.
 
-**Context**: Users should get a unique credential for their hotspot/repeater. HBLink's MASTER section uses a single shared passphrase for all peers — it has no per-peer authentication.
+---
 
-**Options**:
-- **A**: CFLAG runs a UDP proxy in front of HBLink that handles per-peer authentication using credentials from the database, then forwards authenticated traffic using the master passphrase.
-- **B**: Accept a shared network passphrase for HBLink MMDVM connections. Per-peer access control is enforced by enable/disable status in the database (enabled peers are included in the generated config; disabled peers are excluded). Users still register and get "their" credentials, but the underlying passphrase is network-wide.
-- **C**: Use OpenBridge (OBP) connections for server-to-server links, which do have individual passphrases, while hotspots use the shared MMDVM passphrase.
+### AD-2: Per-hotspot / per-user authentication ✅ RESOLVED
 
-**Recommendation**: Option B for MMDVM hotspot connections. Peer enable/disable (included/excluded from generated config) provides effective access control without a proxy layer. Revisit Option A if per-peer passphrase isolation becomes a hard requirement.
+**Decision**: Authentication is anchored to the user's **DMR ID**. Access control is enforced by a DMR ID whitelist (`REG_ACL` in generated `hblink.cfg`). Only registered, email-verified, admin-approved DMR IDs appear in the whitelist. Devices not in the whitelist are rejected at the HBLink layer even with the correct passphrase.
 
-### AD-3: Public vs. authenticated page boundaries
+**Model**:
+- User registers with their callsign + DMR ID + email
+- Email verified → account activated
+- Admin approves device connection request → DMR ID added to whitelist in next generated config
+- All hotspots use the same short network passphrase for the MMDVM connection
+- Per-device access is controlled by whitelist inclusion, not per-device passphrases
 
-**Context**: Some pages should be publicly visible (network status, last-heard, node info). Others require login (admin functions). Others require a registered user account (profile, hotspot management, messaging).
+**Future work**: Per-device unique passphrases require a UDP proxy in front of HBLink (HBLink MASTER supports only one shared passphrase). This is a valid future enhancement once the core platform is stable.
 
-**Decision needed**: Define the three tiers explicitly:
-1. **Public** (no login): Network status dashboard, last-heard activity, node list, registration page
-2. **Registered user** (logged-in user account): Profile, hotspot management, talkgroup subscriptions, messaging
-3. **Moderator** (elevated user): Mute/ban request tools, moderation log
-4. **Admin** (system admin account): Full config, user management, talkgroup approval, theming, server management
+**FreeDMR equivalent**: `ALLOW_UNREG_ID: False` + per-ID whitelist. The same model applies if the engine is ever swapped to FreeDMR.
+
+---
+
+### AD-3: Page access tiers ✅ RESOLVED
+
+Four access tiers, each building on the previous:
+
+| Tier | Who | What they can see |
+|------|-----|-------------------|
+| **Public** | Anyone, no login | Registration page, network info, last-heard\* (\*admin-toggled), node status |
+| **User** | Registered + email-verified | Profile, hotspot management, talkgroup subscriptions, messaging, chat |
+| **Moderator** | User with moderator role | + Mute tools, ban requests, moderation log |
+| **Admin** | System administrator | + Full config, user management, talkgroup approval, theming, server management, node management |
+
+**Public last-heard**: Controlled by a `system_settings` flag. Default: **off**. Admins can enable it. When disabled, the last-heard page requires login (User tier minimum).
+
+**Registration flow**:
+1. User submits: callsign, DMR ID, email, password, display name
+2. System sends email with a single-use verification token (expires 24h)
+3. User clicks link → account activated (User tier)
+4. User submits device connection request → admin approves → DMR ID whitelisted
+5. After whitelist inclusion + config apply → device can connect to the network
+
+**Email sending**: PHP-native SMTP (no Composer). Config in `.env`: `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`.
 
 ---
 
@@ -338,21 +357,60 @@ Helps users configure their radios and hotspots to connect to the network.
 
 ## Database Schema Areas (high-level)
 
-The following entities will live in the CFLAG DMR MariaDB database. Detailed schemas are defined per feature spec.
+The following entities will live in the CFLAG DMR MariaDB database. Detailed schemas are defined per feature spec. Schema patterns are informed by the handoff document from the test server.
 
-| Entity group | Tables | Notes |
+| Entity group | Key Tables | Notes |
 |---|---|---|
-| Users & auth | `users`, `user_sessions`, `roles` | Replaces/extends `admin_users` |
-| Devices | `devices`, `device_talkgroups` | Hotspots and repeaters |
-| Talkgroups | `talkgroups`, `talkgroup_acl`, `talkgroup_requests` | |
-| Network config | `masters`, `peers`, `obp_links`, `bridges`, `bridge_systems` | DB-driven HBLink config |
+| Users & auth | `users`, `email_verifications`, `user_sessions`, `roles` | Replaces/extends `admin_users`; roles column on users table |
+| Subscriber data | `subscriber_ids` | Radio ID → callsign/name lookup; pulled from RadioID.net + local overrides |
+| Devices | `devices`, `device_talkgroups` | Hotspots and repeaters; approval status controls REG_ACL whitelist |
+| Talkgroups | `talkgroups`, `talkgroup_acl`, `talkgroup_requests` | categories: local, regional, tactical, system, bridge, parrot |
+| Network config | `masters`, `peers`, `obp_links`, `bridges`, `bridge_rules` | DB-driven HBLink config; bridge_rules replaces rules.py |
+| DMR activity | `dmr_call_sessions`, `dmr_events` | call_sessions for dashboard/analytics; events for raw/debug capture |
 | Moderation | `mod_actions`, `ban_requests` | |
-| Node management | `nodes`, `node_links` | Multi-node support |
+| Node management | `nodes`, `node_links` | Multi-node OBP linking |
 | Messaging | `messages`, `message_threads` | |
 | Chat | `chat_channels`, `chat_messages` | |
-| Config backups | `config_backups` | Metadata only; files on disk |
-| Audit log | `audit_log` | All admin/mod actions |
+| Config backups | `config_backups` | Metadata + file path; files stored outside web root |
+| Audit log | `audit_log` | actor_user_id, action, target_type, target_id, before_json, after_json |
+| System settings | `system_settings` | Key/value store for admin-toggled flags (e.g. public_lastheard_enabled) |
 | Theming | `theme_settings` | Color vars, active preset |
+
+### Key schema notes
+
+**`dmr_call_sessions`** (preferred over a simple `last_heard` table — lessons from handoff):
+- `session_key`, `started_at`, `ended_at`, `duration_sec`, `system_name`, `peer_id`, `radio_id`, `callsign`, `tg_number`, `tg_name`, `slot`, `call_type`
+- Feed last-heard page, per-user activity, per-talkgroup activity, analytics
+
+**`dmr_events`** (raw event capture for debugging):
+- `event_time`, `event_type`, `peer_id`, `radio_id`, `tg_number`, `slot`, `source_ip`, `raw_payload`
+- Essential for diagnosing TGRewrite confusion (hotspot rewrites the TG before it reaches the master)
+
+**`bridge_rules`** (replaces `rules.py`):
+- `bridge_id`, `system_name`, `timeslot`, `talkgroup_id`, `active`, `timeout`, `to_type`, `on_triggers` (JSON), `off_triggers` (JSON), `reset_triggers` (JSON)
+
+**`system_settings`** (key/value):
+- `public_lastheard_enabled` — bool, default false
+- `registration_open` — bool, controls whether registration form is accessible
+- `require_device_approval` — bool, controls auto-approve vs admin-approve for device requests
+- `network_passphrase` — the short MMDVM passphrase (≤16 chars) used in generated hblink.cfg
+
+---
+
+## Routing Diagnostic Vision
+
+A recurring pain point discovered on the test server: a talkgroup can appear correct at one layer and wrong at another, making issues very hard to debug. The full signal chain is:
+
+```
+Radio codeplug TG
+    → Hotspot local mapping
+        → DMRGateway TGRewrite rules
+            → Master server received TG       ← what HBLink actually sees
+                → HBLink/bridge routing rule
+                    → Destination system/TG
+```
+
+A future diagnostic view should show the full trace for any call session — what TG the hotspot sent vs. what the master received vs. what route was matched. This makes TGRewrite issues immediately visible without SSH log inspection.
 
 ---
 
