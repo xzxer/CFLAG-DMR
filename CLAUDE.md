@@ -1,10 +1,10 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/004-user-registration/plan.md
+at specs/005-hblink-config-visibility/plan.md
 
-The current active phase is F3: User Registration & Accounts (specs/004-user-registration/).
-P0 (HBLink + HBMonv2 setup), F1 (Admin login), and F2 (Role & Permission System) are complete.
+The current active phase is F8: HBLink Config Visibility (specs/005-hblink-config-visibility/).
+P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), and F3 (User Registration & Accounts) are complete.
 <!-- SPECKIT END -->
 
 ## Current Architecture Direction

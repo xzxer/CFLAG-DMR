@@ -330,3 +330,50 @@ textarea { resize: vertical; min-height: 80px; }
 
 .pagination a:hover { background: #334155; color: #f8fafc; }
 .pagination .current { background: #f97316; border-color: #f97316; color: #0f172a; font-weight: 700; }
+
+/* ── Code viewer (HBLink config / rules pages) ───────────── */
+.code-viewer {
+    overflow-x: auto;
+    background: #020617;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    margin: 0.5rem 0 1rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+.code-viewer ol {
+    margin: 0;
+    padding: 0.5rem 0;
+}
+
+.code-viewer li {
+    padding: 0 1.5rem 0 0.5rem;
+    white-space: pre;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: #e2e8f0;
+}
+
+.code-viewer li::marker {
+    color: #475569;
+    font-size: 0.75rem;
+}
+
+/* ── Sensitive value masking ─────────────────────────────── */
+.masked-value {
+    color: #64748b;
+    letter-spacing: 0.05em;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* ── Config drift / warning banner ──────────────────────── */
+.drift-warning {
+    background: #431407;
+    border: 1px solid #92400e;
+    border-radius: 8px;
+    color: #fde68a;
+    font-size: 0.95rem;
+    margin-bottom: 1.25rem;
+    padding: 0.7rem 1rem;
+}

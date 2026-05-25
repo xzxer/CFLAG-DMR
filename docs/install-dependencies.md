@@ -63,6 +63,29 @@ All migrations assume InnoDB engine.
 - `AllowOverride All` on the document root directory
 - The vhost file lives at `/etc/apache2/sites-available/cflag-dmr.conf`
 
+### HBLink config file permissions (F8)
+
+The web server process (`www-data`) must have read access to `hblink.cfg` and `rules.py` so the config viewer pages can load them:
+
+```bash
+# Standard install at /opt/hblink3/
+chown root:www-data /opt/hblink3/hblink.cfg /opt/hblink3/rules.py
+chmod 644 /opt/hblink3/hblink.cfg /opt/hblink3/rules.py
+
+# Docker-based install at /etc/hblink3/
+chown root:www-data /etc/hblink3/hblink.cfg /etc/hblink3/rules.py
+chmod 644 /etc/hblink3/hblink.cfg /etc/hblink3/rules.py
+```
+
+The file paths are configured in `system_settings` (`hblink_cfg_path`, `hblink_rules_path`).
+For Docker deployments the default paths point to `/etc/hblink3/`; for standard installs update these values to `/opt/hblink3/`.
+
+The `hblink_process_name` setting controls which process name `pgrep` searches for:
+- Standard HBLink: `hblink.py`
+- Docker (bridge.py entry point): `bridge.py`
+
+---
+
 ### Log file
 
 Create the dev-mode email log and set ownership so Apache can write to it:
@@ -216,6 +239,8 @@ For production email, also set:
 - [ ] Apache vhost configured with correct `DocumentRoot` and `AllowOverride All`
 - [ ] `.env` populated from `.env.example`
 - [ ] Apache restarted after PHP extension install
+- [ ] HBLink config files readable by `www-data` (`chmod 644`; see HBLink config file permissions section)
+- [ ] `hblink_process_name` in `system_settings` matches actual process name (`bridge.py` for Docker, `hblink.py` for standard)
 - [ ] `postfix` + `opendkim` + `opendkim-tools` installed
 - [ ] Postfix configured for loopback-only with DKIM milter
 - [ ] DKIM key pair generated in `/etc/opendkim/keys/cflag.net/`
