@@ -55,3 +55,75 @@ code {
     border-radius: 6px;
     padding: 0.15rem 0.4rem;
 }
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    font-size: 0.9rem;
+    color: #94a3b8;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.form-group input {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    color: #f8fafc;
+    font-size: 1rem;
+    padding: 0.65rem 0.9rem;
+    width: 100%;
+    transition: border-color 0.15s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #f97316;
+}
+
+.btn {
+    background: #f97316;
+    border: none;
+    border-radius: 8px;
+    color: #0f172a;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.7rem 1.5rem;
+    width: 100%;
+    transition: background 0.15s;
+}
+
+.btn:hover {
+    background: #fb923c;
+}
+
+.alert-error {
+    background: #450a0a;
+    border: 1px solid #7f1d1d;
+    border-radius: 8px;
+    color: #fca5a5;
+    font-size: 0.95rem;
+    margin-bottom: 1.25rem;
+    padding: 0.7rem 1rem;
+}
+
+.card h1 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+}
+
+.nav-link {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+.nav-link:hover {
+    color: #f97316;
+}
