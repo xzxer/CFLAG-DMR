@@ -6,6 +6,8 @@ require_once __DIR__ . '/../auth/roles.php';
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../config/settings.php';
 require_once __DIR__ . '/../config/openbridge.php';
+require_once __DIR__ . '/../config/peer_auth_generator.php';
+require_once __DIR__ . '/../config/routing_generator.php';
 require_once __DIR__ . '/../devices/manager.php';
 require_once __DIR__ . '/../talkgroups/manager.php';
 require_once __DIR__ . '/../hblink/reader.php';
@@ -188,6 +190,10 @@ function generate_hblink_config(int $actor_id): array
     get_db()->prepare(
         'DELETE FROM config_change_queue WHERE created_at <= NOW()'
     )->execute();
+
+    // Regenerate peer auth and routing JSON files for patched HBLink
+    generate_peer_auth_json();
+    generate_bridge_routes_json();
 
     log_audit_action($actor_id, 'config_generated', 'config', null, [
         'changed' => $changed,

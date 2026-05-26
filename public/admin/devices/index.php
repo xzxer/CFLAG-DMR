@@ -4,6 +4,8 @@ declare(strict_types=1);
 $root = dirname(__DIR__, 3);
 require_once $root . '/app/auth/roles.php';
 require_once $root . '/app/devices/manager.php';
+require_once $root . '/app/config/peer_auth_generator.php';
+require_once $root . '/app/config/routing_generator.php';
 
 start_session();
 require_role('system_admin');
@@ -20,6 +22,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'approve' && $device_id > 0) {
             $result = approve_device($device_id, $admin_id);
             $_SESSION[$result['ok'] ? '_flash_ok' : '_flash_error'] = $result['ok'] ? 'Device approved.' : $result['error'];
+            if ($result['ok']) {
+                generate_peer_auth_json();
+                generate_bridge_routes_json();
+            }
         } elseif ($action === 'deny' && $device_id > 0) {
             $reason = trim($_POST['reason'] ?? '');
             if ($reason === '') {
@@ -27,6 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 deny_device($device_id, $admin_id, $reason);
                 $_SESSION['_flash_ok'] = 'Device denied.';
+                generate_peer_auth_json();
+                generate_bridge_routes_json();
             }
         }
     }
