@@ -54,6 +54,9 @@ $role_badge = [
 ];
 
 $name = $_SESSION['display_name'] ?? 'Admin';
+
+require_once dirname(__DIR__, 3) . '/app/profile/callsign.php';
+$pending_cs_count = count(get_pending_callsign_requests());
 ?>
 <!doctype html>
 <html lang="en">
@@ -77,6 +80,12 @@ $name = $_SESSION['display_name'] ?? 'Admin';
             <p style="display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.85rem; margin-bottom: 1.5rem;">
                 <a href="/admin/users/" class="nav-link<?= $filter_verified === null ? ' nav-link-active' : '' ?>">All users</a>
                 <a href="/admin/users/?verified=0" class="nav-link<?= $filter_verified === '0' ? ' nav-link-active' : '' ?>">Unverified only</a>
+                <a href="/admin/users/callsign-requests.php" class="nav-link">
+                    Callsign Requests
+                    <?php if ($pending_cs_count > 0): ?>
+                    <span class="badge badge-pending" style="margin-left:0.35rem;"><?= $pending_cs_count ?></span>
+                    <?php endif; ?>
+                </a>
             </p>
 
             <div class="table-wrap">

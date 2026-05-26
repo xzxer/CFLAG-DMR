@@ -244,6 +244,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /* ── View data ────────────────────────────────────────────────── */
+require_once dirname(__DIR__, 3) . '/app/devices/manager.php';
+
 $user_roles   = get_user_roles($user_id);
 $actor_level  = actor_max_level($actor_id);
 $is_admin     = user_has_role($actor_id, 'admin');
@@ -272,6 +274,17 @@ $role_badge = [
 ];
 
 $csrf = csrf_token();
+
+$user_devices = get_user_devices($user_id);
+
+$stmt_ml = $db->prepare(
+    'SELECT action, reason, duration_hours, expires_at, created_at,
+            (SELECT username FROM users WHERE id = ml.actor_user_id) AS actor_username
+     FROM mod_log ml WHERE ml.target_user_id = ?
+     ORDER BY ml.created_at DESC LIMIT 20'
+);
+$stmt_ml->execute([$user_id]);
+$mod_history = $stmt_ml->fetchAll();
 ?>
 <!doctype html>
 <html lang="en">
@@ -548,6 +561,61 @@ $csrf = csrf_token();
             <?php endif; /* is_moderator */ ?>
 
         </section>
+
+        <section class="card" style="margin-top:1.5rem;">
+            <p class="eyebrow">Devices</p>
+            <h1 style="font-size:clamp(1.1rem,2vw,1.4rem);margin-bottom:0.75rem;">Registered Devices</h1>
+            <?php if (empty($user_devices)): ?>
+            <p class="muted" style="font-size:0.9rem;">No devices registered.</p>
+            <?php else: ?>
+            <div class="lh-table-wrap">
+                <table class="lh-table">
+                    <thead><tr><th>Callsign</th><th>DMR ID</th><th>Type</th><th>Status</th></tr></thead>
+                    <tbody>
+                        <?php foreach ($user_devices as $d): ?>
+                        <tr>
+                            <td class="callsign"><?= htmlspecialchars($d['callsign'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td style="color:#60a5fa;font-weight:700;"><?= htmlspecialchars((string)$d['dmr_id'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars(ucfirst($d['device_type']), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td>
+                                <?php if ($d['status'] === 'approved'): ?>
+                                <span class="badge badge-active">Approved</span>
+                                <?php elseif ($d['status'] === 'pending'): ?>
+                                <span class="badge badge-pending">Pending</span>
+                                <?php else: ?>
+                                <span class="badge badge-banned">Denied</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+        </section>
+
+        <?php if (!empty($mod_history)): ?>
+        <section class="card" style="margin-top:1.5rem;">
+            <p class="eyebrow">History</p>
+            <h1 style="font-size:clamp(1.1rem,2vw,1.4rem);margin-bottom:0.75rem;">Moderation History</h1>
+            <div class="lh-table-wrap">
+                <table class="lh-table">
+                    <thead><tr><th>Action</th><th>Reason</th><th>By</th><th>Date</th></tr></thead>
+                    <tbody>
+                        <?php foreach ($mod_history as $entry): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($entry['action'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td style="font-size:0.85rem;"><?= htmlspecialchars($entry['reason'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td class="muted" style="font-size:0.85rem;"><?= htmlspecialchars($entry['actor_username'] ?? '—', ENT_QUOTES, 'UTF-8') ?></td>
+                            <td class="muted" style="font-size:0.85rem;"><?= htmlspecialchars($entry['created_at'], ENT_QUOTES, 'UTF-8') ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        <?php endif; ?>
+
     </main>
 </body>
 </html>
