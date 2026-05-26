@@ -86,6 +86,25 @@ The `hblink_process_name` setting controls which process name `pgrep` searches f
 
 ---
 
+### HBMonv2 last-heard log permissions (F9)
+
+The HBMonv2 log directory and files are world-readable by default — no `chown` is required:
+
+```
+/opt/HBMonv2/log/   — permissions 0755 (world-readable directory)
+lastheard.log       — permissions 0644 (world-readable file, created on first transmission)
+```
+
+`www-data` can read `lastheard.log` without any additional configuration on a standard HBMonv2 install.
+
+If the log path is changed via `system_settings` (`lastheard_log_path`), the new path must:
+- Be readable by `www-data`
+- Be under one of the allowed base directories: `/opt/HBMonv2/` or `/var/log/hbmon/`
+
+The `lastheard.log` file is created automatically by HBMonv2 on the first transmission longer than 2 seconds. Until then, the last-heard page shows "No activity recorded yet" — this is normal.
+
+---
+
 ### Log file
 
 Create the dev-mode email log and set ownership so Apache can write to it:
@@ -241,6 +260,8 @@ For production email, also set:
 - [ ] Apache restarted after PHP extension install
 - [ ] HBLink config files readable by `www-data` (`chmod 644`; see HBLink config file permissions section)
 - [ ] `hblink_process_name` in `system_settings` matches actual process name (`bridge.py` for Docker, `hblink.py` for standard)
+- [ ] HBMonv2 `lastheard.log` path accessible by `www-data` (world-readable by default at `/opt/HBMonv2/log/`; no chown needed for standard install)
+- [ ] `public_lastheard_enabled` in `system_settings` set to desired default (`1` = public, `0` = login required)
 - [ ] `postfix` + `opendkim` + `opendkim-tools` installed
 - [ ] Postfix configured for loopback-only with DKIM milter
 - [ ] DKIM key pair generated in `/etc/opendkim/keys/cflag.net/`

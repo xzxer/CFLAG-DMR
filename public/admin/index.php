@@ -4,14 +4,15 @@ declare(strict_types=1);
 $root = dirname(__DIR__, 2);
 require_once $root . '/app/auth/roles.php';
 require_once $root . '/app/hblink/process.php';
+require_once $root . '/app/lastheard/reader.php';
 
 start_session();
 require_role('admin');
 
 $name          = $_SESSION['display_name'] ?? $_SESSION['username'] ?? 'Admin';
-$hblink_status = user_has_role((int) $_SESSION['user_id'], 'system_admin')
-    ? get_hblink_status()
-    : null;
+$is_sysadmin   = user_has_role((int) $_SESSION['user_id'], 'system_admin');
+$hblink_status = $is_sysadmin ? get_hblink_status()  : null;
+$lh_result     = $is_sysadmin ? load_lastheard(5)    : null;
 ?>
 <!doctype html>
 <html lang="en">
@@ -34,6 +35,36 @@ $hblink_status = user_has_role((int) $_SESSION['user_id'], 'system_admin')
                 <a href="/logout.php" class="nav-link">Log out</a>
             </p>
         </section>
+
+        <?php if ($lh_result !== null): ?>
+        <section class="card" style="margin-top: 1.5rem;">
+            <p class="eyebrow">Activity</p>
+            <h1 style="font-size: clamp(1.1rem, 2vw, 1.4rem); margin-bottom: 0.75rem;">Last Heard</h1>
+            <?php if ($lh_result['error'] !== null || empty($lh_result['rows'])): ?>
+            <p class="muted" style="font-size:0.9rem;">No activity recorded yet.</p>
+            <?php else: ?>
+            <div class="lh-table-wrap">
+                <table class="lh-table">
+                    <thead>
+                        <tr><th>Callsign</th><th>Talkgroup</th><th>Date / Time</th></tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($lh_result['rows'] as $row): ?>
+                        <tr>
+                            <td class="callsign"><?= htmlspecialchars($row['callsign'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars($row['tg_name'] !== '' ? $row['tg_name'] : 'TG '.$row['tgid'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars($row['datetime'], ENT_QUOTES, 'UTF-8') ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+            <p style="margin-top: 0.75rem;">
+                <a href="/last-heard.php" class="nav-link">View Full Log &#8594;</a>
+            </p>
+        </section>
+        <?php endif; ?>
 
         <?php if ($hblink_status !== null): ?>
         <section class="card" style="margin-top: 1.5rem;">
