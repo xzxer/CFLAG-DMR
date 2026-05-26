@@ -18,26 +18,28 @@ if ($file['content'] !== null) {
         array_pop($lines);
     }
 }
+
+$page_title = 'HBLink Rules';
+$active_nav = 'admin-hblink';
+require_once $root . '/app/views/header.php';
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>HBLink Rules — CFLAG DMR</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/assets/css/app.css">
-</head>
-<body>
-    <main class="page" style="align-items: flex-start; padding: 2rem 1rem;">
-        <section class="card" style="width: min(960px, 100%);">
-            <p class="eyebrow">HBLink</p>
-            <h1>Rules File</h1>
+
+<div class="layout-single">
+    <div class="panel">
+        <div class="panel-header">
+            <span class="panel-title">Rules File</span>
+            <div class="panel-actions">
+                <a href="/admin/hblink/config.php" class="btn btn-ghost btn-xs">Config</a>
+                <a href="/admin/hblink/status.php" class="btn btn-ghost btn-xs">Status</a>
+            </div>
+        </div>
+        <div class="panel-body">
 
             <?php if ($file['error'] !== null): ?>
-            <div class="alert-error"><?= htmlspecialchars($file['error'], ENT_QUOTES, 'UTF-8') ?></div>
+            <div class="alert alert-error"><?= htmlspecialchars($file['error'], ENT_QUOTES, 'UTF-8') ?></div>
             <?php else: ?>
 
-            <p class="muted" style="font-size:0.85rem; margin-bottom:1rem;">
+            <p style="font-size:0.8rem;color:var(--text-3);margin-bottom:0.875rem;">
                 Last modified:
                 <?= htmlspecialchars(
                     $file['modified_at'] !== null
@@ -57,12 +59,8 @@ if ($file['content'] !== null) {
 
             <?php endif; ?>
 
-            <p style="margin-top:1.5rem; display:flex; gap:1.5rem; flex-wrap:wrap;">
-                <a href="/admin/" class="nav-link">&#8592; Dashboard</a>
-                <a href="/admin/hblink/config.php" class="nav-link">Config File</a>
-                <a href="/admin/hblink/status.php" class="nav-link">Process Status</a>
-            </p>
-        </section>
-    </main>
-</body>
-</html>
+        </div>
+    </div>
+</div>
+
+<?php require_once $root . '/app/views/footer.php'; ?>

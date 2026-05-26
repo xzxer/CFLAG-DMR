@@ -13,9 +13,9 @@ if (is_logged_in()) {
     redirect('/admin/');
 }
 
-$errors   = [];
-$old      = [];
-$success  = isset($_GET['success']);
+$errors  = [];
+$old     = [];
+$success = isset($_GET['success']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf($_POST['csrf_token'] ?? '')) {
@@ -35,7 +35,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             } catch (\RuntimeException $e) {
                 error_log('[register] RadioID lookup failed: ' . $e->getMessage());
-                // Unavailable — fall back to format-only validation, do not reject
             }
         }
 
@@ -55,96 +54,88 @@ function field_error(array $errors, string $field): string
     if (!isset($errors[$field])) {
         return '';
     }
-    return '<p class="field-error">' . htmlspecialchars($errors[$field], ENT_QUOTES, 'UTF-8') . '</p>';
+    return '<p class="form-hint" style="color:var(--red)">' . htmlspecialchars($errors[$field], ENT_QUOTES, 'UTF-8') . '</p>';
 }
 
 function old_val(array $old, string $field): string
 {
     return htmlspecialchars($old[$field] ?? '', ENT_QUOTES, 'UTF-8');
 }
+
+$page_title = $success ? 'Check Your Email' : 'Create Account';
+require_once dirname(__DIR__) . '/app/views/auth_header.php';
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Register — CFLAG DMR</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/assets/css/app.css">
-</head>
-<body>
-    <main class="page">
-        <section class="card" style="width: min(520px, 100%);">
-            <p class="eyebrow">CFLAG DMR</p>
+<div class="auth-card" style="max-width:460px;">
+    <div class="auth-brand">CFLAG DMR</div>
 
-            <?php if ($success): ?>
-                <h1>Check Your Email</h1>
-                <p>Your account has been created. A verification link has been sent to your email address. Click the link to activate your account, then log in.</p>
-                <p style="margin-top: 1.5rem;">
-                    <a href="/login.php" class="nav-link">Go to login</a>
-                </p>
+    <?php if ($success): ?>
+        <div class="auth-title">Check Your Email</div>
+        <p style="font-size:0.835rem;color:var(--text-2);margin-bottom:1.25rem;">
+            Your account has been created. A verification link has been sent to your email address.
+            Click the link to activate your account, then sign in.
+        </p>
+        <a href="/login.php" class="btn btn-primary" style="width:100%;display:block;text-align:center;">Go to sign in</a>
 
-            <?php else: ?>
-                <h1>Create Account</h1>
-                <p class="muted" style="margin-bottom: 1.5rem; font-size: 0.9rem;">
-                    Already have an account? <a href="/login.php" class="nav-link">Sign in</a>
-                </p>
+    <?php else: ?>
+        <div class="auth-title">Create Account</div>
 
-                <?php if (!empty($errors['form'])): ?>
-                    <div class="alert-error"><?= htmlspecialchars($errors['form'], ENT_QUOTES, 'UTF-8') ?></div>
-                <?php endif; ?>
+        <?php if (!empty($errors['form'])): ?>
+            <div class="alert alert-error"><?= htmlspecialchars($errors['form'], ENT_QUOTES, 'UTF-8') ?></div>
+        <?php endif; ?>
 
-                <form method="post" action="/register.php">
-                    <input type="hidden" name="csrf_token"
-                           value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
+        <form method="post" action="/register.php">
+            <input type="hidden" name="csrf_token"
+                   value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
 
-                    <div class="form-group">
-                        <label for="callsign">Callsign</label>
-                        <input type="text" id="callsign" name="callsign"
-                               value="<?= old_val($old, 'callsign') ?>"
-                               autocomplete="off" required
-                               placeholder="e.g. W1AW">
-                        <?= field_error($errors, 'callsign') ?>
-                    </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="callsign">Callsign</label>
+                    <input type="text" id="callsign" name="callsign"
+                           value="<?= old_val($old, 'callsign') ?>"
+                           autocomplete="off" required placeholder="e.g. W1AW">
+                    <?= field_error($errors, 'callsign') ?>
+                </div>
+                <div class="form-group">
+                    <label for="dmr_id">DMR ID</label>
+                    <input type="text" id="dmr_id" name="dmr_id"
+                           value="<?= old_val($old, 'dmr_id') ?>"
+                           autocomplete="off" required placeholder="7-digit ID">
+                    <?= field_error($errors, 'dmr_id') ?>
+                </div>
+            </div>
 
-                    <div class="form-group">
-                        <label for="dmr_id">DMR ID</label>
-                        <input type="text" id="dmr_id" name="dmr_id"
-                               value="<?= old_val($old, 'dmr_id') ?>"
-                               autocomplete="off" required
-                               placeholder="7-digit DMR ID">
-                        <?= field_error($errors, 'dmr_id') ?>
-                    </div>
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email"
+                       value="<?= old_val($old, 'email') ?>"
+                       autocomplete="email" required>
+                <?= field_error($errors, 'email') ?>
+            </div>
 
-                    <div class="form-group">
-                        <label for="email">Email Address</label>
-                        <input type="email" id="email" name="email"
-                               value="<?= old_val($old, 'email') ?>"
-                               autocomplete="email" required>
-                        <?= field_error($errors, 'email') ?>
-                    </div>
+            <div class="form-group">
+                <label for="display_name">Display Name</label>
+                <input type="text" id="display_name" name="display_name"
+                       value="<?= old_val($old, 'display_name') ?>"
+                       autocomplete="name" required minlength="2" maxlength="64">
+                <?= field_error($errors, 'display_name') ?>
+            </div>
 
-                    <div class="form-group">
-                        <label for="display_name">Display Name</label>
-                        <input type="text" id="display_name" name="display_name"
-                               value="<?= old_val($old, 'display_name') ?>"
-                               autocomplete="name" required
-                               minlength="2" maxlength="64">
-                        <?= field_error($errors, 'display_name') ?>
-                    </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password"
+                       autocomplete="new-password" required minlength="12">
+                <p class="form-hint">Minimum 12 characters</p>
+                <?= field_error($errors, 'password') ?>
+            </div>
 
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" name="password"
-                               autocomplete="new-password" required
-                               minlength="12">
-                        <span class="muted" style="font-size: 0.8rem;">Minimum 12 characters</span>
-                        <?= field_error($errors, 'password') ?>
-                    </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" style="width:100%;">Create Account</button>
+            </div>
+        </form>
 
-                    <button type="submit" class="btn">Create Account</button>
-                </form>
-            <?php endif; ?>
-        </section>
-    </main>
-</body>
-</html>
+        <div class="auth-foot">
+            Already have an account? <a href="/login.php">Sign in</a>
+        </div>
+    <?php endif; ?>
+</div>
+<?php require_once dirname(__DIR__) . '/app/views/auth_footer.php'; ?>

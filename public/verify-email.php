@@ -9,39 +9,29 @@ start_session();
 
 $token = trim($_GET['token'] ?? '');
 
-function render_verify_page(string $title, string $heading, string $message, string $link_href = '', string $link_text = ''): void
+function _render_verify(string $page_title, string $heading, string $message, string $link_href = '', string $link_text = ''): void
 {
+    require_once dirname(__DIR__) . '/app/views/auth_header.php';
     ?>
-    <!doctype html>
-    <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <title><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?> — CFLAG DMR</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="stylesheet" href="/assets/css/app.css">
-    </head>
-    <body>
-        <main class="page">
-            <section class="card" style="width: min(520px, 100%);">
-                <p class="eyebrow">CFLAG DMR</p>
-                <h1><?= htmlspecialchars($heading, ENT_QUOTES, 'UTF-8') ?></h1>
-                <p><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></p>
-                <?php if ($link_href !== ''): ?>
-                    <p style="margin-top: 1.5rem;">
-                        <a href="<?= htmlspecialchars($link_href, ENT_QUOTES, 'UTF-8') ?>" class="nav-link">
-                            <?= htmlspecialchars($link_text, ENT_QUOTES, 'UTF-8') ?>
-                        </a>
-                    </p>
-                <?php endif; ?>
-            </section>
-        </main>
-    </body>
-    </html>
+    <div class="auth-card">
+        <div class="auth-brand">CFLAG DMR</div>
+        <div class="auth-title"><?= htmlspecialchars($heading, ENT_QUOTES, 'UTF-8') ?></div>
+        <p style="font-size:0.835rem;color:var(--text-2);margin-bottom:1.25rem;">
+            <?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?>
+        </p>
+        <?php if ($link_href !== ''): ?>
+            <a href="<?= htmlspecialchars($link_href, ENT_QUOTES, 'UTF-8') ?>"
+               class="btn btn-primary" style="width:100%;display:block;text-align:center;">
+                <?= htmlspecialchars($link_text, ENT_QUOTES, 'UTF-8') ?>
+            </a>
+        <?php endif; ?>
+    </div>
     <?php
+    require_once dirname(__DIR__) . '/app/views/auth_footer.php';
 }
 
 if ($token === '') {
-    render_verify_page(
+    _render_verify(
         'Invalid Link', 'Invalid Verification Link',
         'This verification link is invalid.',
         '/resend-verification.php', 'Request a new verification email'
@@ -57,7 +47,7 @@ $stmt->execute([$token]);
 $row = $stmt->fetch();
 
 if ($row === false) {
-    render_verify_page(
+    _render_verify(
         'Invalid Link', 'Invalid Verification Link',
         'This verification link is invalid or has already expired.',
         '/resend-verification.php', 'Request a new verification email'
@@ -66,7 +56,7 @@ if ($row === false) {
 }
 
 if ($row['used_at'] !== null) {
-    render_verify_page(
+    _render_verify(
         'Already Verified', 'Email Already Verified',
         'Your email address has already been verified.',
         '/login.php', 'Sign in'
@@ -75,7 +65,7 @@ if ($row['used_at'] !== null) {
 }
 
 if (strtotime($row['expires_at']) < time()) {
-    render_verify_page(
+    _render_verify(
         'Link Expired', 'Verification Link Expired',
         'This verification link has expired. Please request a new one.',
         '/resend-verification.php', 'Resend verification email'

@@ -9,77 +9,71 @@ start_session();
 require_role('system_admin');
 
 $status = get_hblink_status();
+
+$page_title = 'HBLink Status';
+$active_nav = 'admin-hblink';
+require_once $root . '/app/views/header.php';
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>HBLink Status — CFLAG DMR</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/assets/css/app.css">
-</head>
-<body>
-    <main class="page">
-        <section class="card">
-            <p class="eyebrow">HBLink</p>
-            <h1>Process Status</h1>
+
+<div class="layout-single">
+    <div class="panel" style="align-self:start;max-width:480px;">
+        <div class="panel-header">
+            <span class="panel-title">Process Status</span>
+            <div class="panel-actions">
+                <a href="/admin/hblink/config.php" class="btn btn-ghost btn-xs">Config</a>
+                <a href="/admin/hblink/rules.php" class="btn btn-ghost btn-xs">Rules</a>
+            </div>
+        </div>
+        <div class="panel-body">
 
             <?php if ($status['config_drifted']): ?>
-            <div class="drift-warning">
+            <div class="alert alert-error" style="margin-bottom:1rem;">
                 &#9888; Config file has been modified since HBLink was last started.
             </div>
             <?php endif; ?>
 
-            <div class="field-row" style="margin-bottom:1rem;">
-                <span class="field-label">Status</span>
-                <span class="field-value">
-                    <?php if ($status['running']): ?>
-                    <span class="badge badge-active">Running</span>
-                    <?php else: ?>
-                    <span class="badge badge-banned">Stopped</span>
-                    <?php endif; ?>
-                </span>
+            <div class="field-list">
+                <div class="field-row">
+                    <span class="field-key">Status</span>
+                    <span class="field-val">
+                        <?= $status['running']
+                            ? '<span class="badge badge-active">Running</span>'
+                            : '<span class="badge badge-error">Stopped</span>' ?>
+                    </span>
+                </div>
+
+                <?php if ($status['running']): ?>
+                <div class="field-row">
+                    <span class="field-key">PID</span>
+                    <span class="field-val col-mono"><?= htmlspecialchars((string)$status['pid'], ENT_QUOTES, 'UTF-8') ?></span>
+                </div>
+                <div class="field-row">
+                    <span class="field-key">Uptime</span>
+                    <span class="field-val">
+                        <?= htmlspecialchars(
+                            $status['uptime_seconds'] !== null
+                                ? format_uptime($status['uptime_seconds'])
+                                : 'Unknown',
+                            ENT_QUOTES, 'UTF-8'
+                        ) ?>
+                    </span>
+                </div>
+                <div class="field-row">
+                    <span class="field-key">Started</span>
+                    <span class="field-val col-ts">
+                        <?= htmlspecialchars(
+                            $status['started_at'] !== null
+                                ? date('Y-m-d H:i:s', $status['started_at'])
+                                : 'Unknown',
+                            ENT_QUOTES, 'UTF-8'
+                        ) ?>
+                    </span>
+                </div>
+                <?php endif; ?>
             </div>
 
-            <?php if ($status['running']): ?>
+        </div>
+    </div>
+</div>
 
-            <div class="field-row">
-                <span class="field-label">PID</span>
-                <span class="field-value"><?= htmlspecialchars((string) $status['pid'], ENT_QUOTES, 'UTF-8') ?></span>
-            </div>
-
-            <div class="field-row">
-                <span class="field-label">Uptime</span>
-                <span class="field-value">
-                    <?= htmlspecialchars(
-                        $status['uptime_seconds'] !== null
-                            ? format_uptime($status['uptime_seconds'])
-                            : 'Unknown',
-                        ENT_QUOTES, 'UTF-8'
-                    ) ?>
-                </span>
-            </div>
-
-            <div class="field-row">
-                <span class="field-label">Started</span>
-                <span class="field-value">
-                    <?= htmlspecialchars(
-                        $status['started_at'] !== null
-                            ? date('Y-m-d H:i:s', $status['started_at'])
-                            : 'Unknown',
-                        ENT_QUOTES, 'UTF-8'
-                    ) ?>
-                </span>
-            </div>
-
-            <?php endif; ?>
-
-            <p style="margin-top:1.5rem; display:flex; gap:1.5rem; flex-wrap:wrap;">
-                <a href="/admin/" class="nav-link">&#8592; Dashboard</a>
-                <a href="/admin/hblink/config.php" class="nav-link">Config File</a>
-                <a href="/admin/hblink/rules.php" class="nav-link">Rules File</a>
-            </p>
-        </section>
-    </main>
-</body>
-</html>
+<?php require_once $root . '/app/views/footer.php'; ?>

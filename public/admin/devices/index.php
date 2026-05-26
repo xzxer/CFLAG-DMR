@@ -8,128 +8,98 @@ require_once $root . '/app/devices/manager.php';
 start_session();
 require_role('system_admin');
 
-$admin_id    = (int) $_SESSION['user_id'];
-$flash_ok    = null;
-$flash_error = null;
+$admin_id = (int) $_SESSION['user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf($_POST['csrf_token'] ?? '')) {
-        $flash_error = 'Invalid request. Please try again.';
+        $_SESSION['_flash_error'] = 'Invalid request. Please try again.';
     } else {
         $action    = $_POST['action'] ?? '';
         $device_id = (int) ($_POST['device_id'] ?? 0);
 
         if ($action === 'approve' && $device_id > 0) {
             $result = approve_device($device_id, $admin_id);
-            if ($result['ok']) {
-                $flash_ok = 'Device approved.';
-            } else {
-                $flash_error = $result['error'];
-            }
-
+            $_SESSION[$result['ok'] ? '_flash_ok' : '_flash_error'] = $result['ok'] ? 'Device approved.' : $result['error'];
         } elseif ($action === 'deny' && $device_id > 0) {
             $reason = trim($_POST['reason'] ?? '');
             if ($reason === '') {
-                $flash_error = 'A denial reason is required.';
+                $_SESSION['_flash_error'] = 'A denial reason is required.';
             } else {
                 deny_device($device_id, $admin_id, $reason);
-                $flash_ok = 'Device denied.';
+                $_SESSION['_flash_ok'] = 'Device denied.';
             }
         }
-
-        header('Location: /admin/devices/');
-        exit;
     }
+    header('Location: /admin/devices/');
+    exit;
 }
 
+$flash_ok    = $_SESSION['_flash_ok']    ?? null; unset($_SESSION['_flash_ok']);
+$flash_error = $_SESSION['_flash_error'] ?? null; unset($_SESSION['_flash_error']);
+
 $pending = get_pending_devices();
+
+$page_title = 'Device Approvals';
+$active_nav = 'admin-devices';
+require_once $root . '/app/views/header.php';
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Device Approvals — CFLAG DMR</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/assets/css/app.css">
-</head>
-<body>
-    <main class="page">
 
-        <?php if ($flash_ok !== null): ?>
-        <div class="card" style="background:#14532d;color:#bbf7d0;margin-bottom:1rem;padding:0.75rem 1rem;">
-            <?= htmlspecialchars($flash_ok, ENT_QUOTES, 'UTF-8') ?>
+<?php if ($flash_ok):    ?><div class="alert alert-success" style="margin-bottom:0.75rem;flex-shrink:0;"><?= htmlspecialchars($flash_ok,    ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
+<?php if ($flash_error): ?><div class="alert alert-error"   style="margin-bottom:0.75rem;flex-shrink:0;"><?= htmlspecialchars($flash_error, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
+
+<div class="layout-single">
+    <div class="panel">
+        <div class="panel-header">
+            <span class="panel-title">Pending Device Registrations</span>
+            <span class="panel-subtitle"><?= count($pending) ?> pending</span>
         </div>
-        <?php endif; ?>
-
-        <?php if ($flash_error !== null): ?>
-        <div class="card" style="background:#450a0a;color:#fca5a5;margin-bottom:1rem;padding:0.75rem 1rem;">
-            <?= htmlspecialchars($flash_error, ENT_QUOTES, 'UTF-8') ?>
-        </div>
-        <?php endif; ?>
-
-        <section class="card">
-            <p class="eyebrow">Admin</p>
-            <h1>Device Approvals</h1>
-
+        <div class="panel-body">
             <?php if (empty($pending)): ?>
-            <p class="muted" style="font-size:0.9rem;">No pending device registrations.</p>
+            <div class="empty-state"><strong>No pending registrations</strong></div>
             <?php else: ?>
-            <div class="lh-table-wrap">
-                <table class="lh-table">
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>Callsign</th>
-                            <th>DMR ID</th>
-                            <th>Type</th>
-                            <th>Hardware</th>
-                            <th>Submitted</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($pending as $d): ?>
-                        <tr>
-                            <td>
-                                <?= htmlspecialchars($d['display_name'] ?: $d['username'], ENT_QUOTES, 'UTF-8') ?>
-                                <span class="muted" style="font-size:0.8rem;display:block;">
-                                    <?= htmlspecialchars($d['email'], ENT_QUOTES, 'UTF-8') ?>
-                                </span>
-                            </td>
-                            <td class="callsign"><?= htmlspecialchars($d['callsign'], ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars((string)$d['dmr_id'], ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars(ucfirst($d['device_type']), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars($d['hardware_desc'], ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars(substr($d['created_at'], 0, 10), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-start;padding-top:0.5rem;">
-                                <form method="post">
-                                    <input type="hidden" name="action" value="approve">
-                                    <input type="hidden" name="device_id" value="<?= (int)$d['id'] ?>">
-                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
-                                    <button type="submit" class="nav-link" style="font-size:0.85rem;min-height:44px;">Approve</button>
-                                </form>
-                                <form method="post" style="display:flex;flex-direction:column;gap:0.35rem;">
-                                    <input type="hidden" name="action" value="deny">
-                                    <input type="hidden" name="device_id" value="<?= (int)$d['id'] ?>">
-                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
-                                    <textarea name="reason" rows="2" placeholder="Denial reason (required)"
-                                              style="font-size:0.8rem;padding:0.3rem 0.5rem;background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:4px;width:160px;resize:vertical;"
-                                              required></textarea>
-                                    <button type="submit" class="nav-link" style="font-size:0.8rem;min-height:44px;background:#450a0a;color:#fca5a5;">Deny</button>
-                                </form>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+            <?php foreach ($pending as $d): ?>
+            <div style="border:1px solid var(--border-2);border-radius:var(--radius);padding:0.875rem;margin-bottom:0.75rem;">
+                <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+                    <a href="/admin/users/view.php?id=<?= (int)$d['user_id'] ?>"
+                       style="font-weight:600;color:var(--text);">
+                        <?= htmlspecialchars($d['display_name'] ?: $d['username'], ENT_QUOTES, 'UTF-8') ?>
+                    </a>
+                    <span style="font-size:0.72rem;color:var(--text-3);"><?= htmlspecialchars($d['email'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <span class="col-ts" style="margin-left:auto;">
+                        <?= htmlspecialchars(substr($d['created_at'], 0, 10), ENT_QUOTES, 'UTF-8') ?>
+                    </span>
+                </div>
+
+                <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.625rem;">
+                    <span style="font-weight:700;"><?= htmlspecialchars($d['callsign'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <span class="badge badge-gray"><?= htmlspecialchars((string)$d['dmr_id'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <span style="font-size:0.72rem;color:var(--text-3);"><?= htmlspecialchars(ucfirst($d['device_type']), ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php if ($d['hardware_desc']): ?>
+                    <span style="font-size:0.72rem;color:var(--text-3);"><?= htmlspecialchars($d['hardware_desc'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endif; ?>
+                </div>
+
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-end;">
+                    <form method="post">
+                        <input type="hidden" name="action" value="approve">
+                        <input type="hidden" name="device_id" value="<?= (int)$d['id'] ?>">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+                        <button type="submit" class="btn btn-primary btn-sm">Approve</button>
+                    </form>
+                    <form method="post" style="display:flex;gap:0.375rem;align-items:flex-end;">
+                        <input type="hidden" name="action" value="deny">
+                        <input type="hidden" name="device_id" value="<?= (int)$d['id'] ?>">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+                        <input type="text" class="form-input" name="reason"
+                               placeholder="Denial reason (required)" required style="width:220px;">
+                        <button type="submit" class="btn btn-danger btn-sm">Deny</button>
+                    </form>
+                </div>
             </div>
+            <?php endforeach; ?>
             <?php endif; ?>
+        </div>
+    </div>
+</div>
 
-            <p style="margin-top:1rem;">
-                <a href="/admin/" class="nav-link">← Dashboard</a>
-            </p>
-        </section>
-
-    </main>
-</body>
-</html>
+<?php require_once $root . '/app/views/footer.php'; ?>

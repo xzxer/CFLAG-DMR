@@ -31,57 +31,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$page_title = 'Sign In';
+require_once dirname(__DIR__) . '/app/views/auth_header.php';
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Login — CFLAG DMR</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/assets/css/app.css">
-</head>
-<body>
-    <main class="page">
-        <section class="card" style="width: min(420px, 100%);">
-            <p class="eyebrow">CFLAG DMR</p>
-            <h1>Sign In</h1>
+<div class="auth-card">
+    <div class="auth-brand">CFLAG DMR</div>
+    <div class="auth-title">Sign In</div>
 
-            <?php if ($verified): ?>
-                <div class="alert-success">Email verified! You can now log in.</div>
-            <?php endif; ?>
+    <?php if ($verified): ?>
+        <div class="alert alert-success">Email verified! You can now log in.</div>
+    <?php endif; ?>
 
-            <?php if ($error !== ''): ?>
-                <div class="alert-error"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
-                <?php if ($show_resend): ?>
-                    <p style="margin-bottom: 1rem; font-size: 0.9rem;">
-                        <a href="/resend-verification.php" class="nav-link">Resend verification email</a>
-                    </p>
-                <?php endif; ?>
-            <?php endif; ?>
-
-            <form method="post" action="/login.php">
-                <input type="hidden" name="csrf_token"
-                       value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
-
-                <div class="form-group">
-                    <label for="username">Username or Email</label>
-                    <input type="text" id="username" name="username"
-                           autocomplete="username" autofocus required>
-                </div>
-
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password"
-                           autocomplete="current-password" required>
-                </div>
-
-                <button type="submit" class="btn">Sign in</button>
-            </form>
-
-            <p style="margin-top: 1.25rem; font-size: 0.9rem; text-align: center;">
-                <a href="/register.php" class="nav-link">Create an account</a>
+    <?php if ($error !== ''): ?>
+        <div class="alert alert-error"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
+        <?php if ($show_resend): ?>
+            <p style="margin-bottom:0.75rem;font-size:0.78rem;">
+                <a href="/resend-verification.php">Resend verification email</a>
             </p>
-        </section>
-    </main>
-</body>
-</html>
+        <?php endif; ?>
+    <?php endif; ?>
+
+    <form method="post" action="/login.php">
+        <input type="hidden" name="csrf_token"
+               value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+
+        <div class="form-group">
+            <label for="username">Username or Email</label>
+            <input type="text" id="username" name="username"
+                   autocomplete="username" autofocus required>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password"
+                   autocomplete="current-password" required>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" style="width:100%;">Sign in</button>
+        </div>
+    </form>
+
+    <div class="auth-foot">
+        <a href="/register.php">Create an account</a>
+    </div>
+</div>
+<?php require_once dirname(__DIR__) . '/app/views/auth_footer.php'; ?>
