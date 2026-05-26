@@ -1,5 +1,8 @@
 <!-- SPECKIT START -->
-No feature currently in active development on dev.
+Active development: F11 (Extended User Profiles) + F12 (User Directory) — implemented together on branch `013-extended-profiles`.
+- F11 plan: specs/013-extended-profiles/plan.md
+- F12 plan: specs/014-user-directory/plan.md
+- Shared migration: migrations/015_extend_user_profiles_directory.sql
 
 Completed: P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), F3 (User Registration & Accounts), F4 (User Profiles), F5 (Hotspot & Repeater Registration), F6 (Talkgroup Management), F7 (Network Config & Peer Management), F8 (HBLink Config Visibility), F9 (Last-Heard & Activity Log), F10 (Network Status Dashboard).
 
