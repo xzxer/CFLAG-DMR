@@ -75,7 +75,7 @@
 **Independent Test**: Navigate to `/users` as any logged-in user — see a table of users, click one — arrive at their profile view page.
 
 - [x] T009 [P] [F12-US1] Create `app/users/directory.php` — functions: `get_directory_users(int $page, int $per_page, bool $admin = false): array` (SELECT u.id, u.callsign, u.username, u.display_name, u.grid_square, u.show_name_publicly, u.first_name, u.last_name, (SELECT COUNT(*) FROM devices d WHERE d.user_id=u.id AND d.status='approved') AS device_count FROM users u WHERE u.moderation_state='active' AND u.email_verified_at IS NOT NULL AND ($admin OR u.show_in_directory=1) ORDER BY COALESCE(u.callsign,'') = '' ASC, u.callsign ASC, u.username ASC LIMIT ? OFFSET ?); `count_directory_users(bool $admin = false): int` (same WHERE, returns COUNT(*))
-- [ ] T010 [F12-US1] Implement `public/users.php` — require_login(); $is_admin = user_has_role('system_admin') || user_has_role('admin'); $q = trim($_GET['q'] ?? ''); $page = max(1, (int)($_GET['page'] ?? 1)); $per_page = 50; require_once app/users/directory.php; if $q !== '' use search function (T011), else get_directory_users; total count for pagination; $active_nav = 'users'; $page_title = 'User Directory'; layout: `.layout-table-page`; filter bar with search input + Search button + Clear link; panel with data-table (cols: Callsign, Display Name, Grid Square, Devices); callsign/display_name links to `/user/view.php?id=X`; empty state "No users match your search" or "No users in directory"; pagination in panel-footer using .pagination class with prev/next page links
+- [x] T010 [F12-US1] Implement `public/users.php` — require_login(); $is_admin = user_has_role('system_admin') || user_has_role('admin'); $q = trim($_GET['q'] ?? ''); $page = max(1, (int)($_GET['page'] ?? 1)); $per_page = 50; require_once app/users/directory.php; if $q !== '' use search function (T011), else get_directory_users; total count for pagination; $active_nav = 'users'; $page_title = 'User Directory'; layout: `.layout-table-page`; filter bar with search input + Search button + Clear link; panel with data-table (cols: Callsign, Display Name, Grid Square, Devices); callsign/display_name links to `/user/view.php?id=X`; empty state "No users match your search" or "No users in directory"; pagination in panel-footer using .pagination class with prev/next page links
 
 **Checkpoint**: `/users` shows paginated list. Clicking a user goes to their profile view. Opted-out users absent (when logged in as non-admin).
 
@@ -87,7 +87,7 @@
 
 **Independent Test**: Type first 3 chars of a known callsign into search — only matching users appear.
 
-- [ ] T011 [US2] Add `search_directory_users(string $q, int $page, int $per_page, bool $admin = false): array` and `count_search_results(string $q, bool $admin = false): int` to `app/users/directory.php` — same base query as get_directory_users but with AND (u.callsign LIKE ? OR u.username LIKE ? OR u.display_name LIKE ?) where param is "%{$q}%"; wire into public/users.php search path (T010 already calls this when $q !== '')
+- [x] T011 [US2] Add `search_directory_users(string $q, int $page, int $per_page, bool $admin = false): array` and `count_search_results(string $q, bool $admin = false): int` to `app/users/directory.php` — same base query as get_directory_users but with AND (u.callsign LIKE ? OR u.username LIKE ? OR u.display_name LIKE ?) where param is "%{$q}%"; wire into public/users.php search path (T010 already calls this when $q !== '')
 
 **Checkpoint**: Searching "W1" returns only users whose callsign/username/display_name contains "W1". Opted-out users excluded from search results.
 
@@ -99,8 +99,8 @@
 
 **Independent Test**: Uncheck "Show me in the user directory" on profile page, save. Browse directory as another user — opted-out user is absent. Re-enable — they reappear.
 
-- [ ] T012 [US3] Verify `update_extended_profile()` in `app/profile/manager.php` persists show_in_directory=0 correctly (already included in T004 — confirm the WHERE u.show_in_directory=1 filter in directory queries excludes the user after save)
-- [ ] T013 [US3] Verify sidebar nav "User Directory" link in `app/views/header.php` is active (active_nav='users') and accessible to all logged-in users — confirm the link exists and points to /users
+- [x] T012 [US3] Verify `update_extended_profile()` in `app/profile/manager.php` persists show_in_directory=0 correctly (already included in T004 — confirm the WHERE u.show_in_directory=1 filter in directory queries excludes the user after save)
+- [x] T013 [US3] Verify sidebar nav "User Directory" link in `app/views/header.php` is active (active_nav='users') and accessible to all logged-in users — confirm the link exists and points to /users
 
 **Checkpoint**: Opt-out end-to-end works. Sidebar shows "User Directory" for all logged-in users.
 
@@ -108,8 +108,8 @@
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T014 Update `specs/000-project-overview/spec.md` — mark F11 and F12 as ✅ Complete
-- [ ] T015 Update `CLAUDE.md` — move F11+F12 from active to completed, clear active development section
+- [x] T014 Update `specs/000-project-overview/spec.md` — mark F11 and F12 as ✅ Complete
+- [x] T015 Update `CLAUDE.md` — move F11+F12 from active to completed, clear active development section
 - [ ] T016 Run quickstart.md scenarios 1.1–4.4 on dev server and confirm expected outcomes
 
 ---

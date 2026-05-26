@@ -2,7 +2,7 @@
 
 **Feature Branch**: `dev` (project-level document; not feature-branch-scoped)
 
-**Created**: 2026-05-24 | **Last Updated**: 2026-05-26 (F4, F5, F6, F7, F10 marked complete)
+**Created**: 2026-05-24 | **Last Updated**: 2026-05-26 (F11, F12 Extended Profiles + User Directory marked complete)
 
 **Status**: Active — canonical product scope reference
 
@@ -100,16 +100,18 @@ Four access tiers, each building on the previous:
 | F8 | HBLink Config Visibility | ✅ Complete | Read-only viewer; [spec](../005-hblink-config-visibility/spec.md) |
 | F9 | Last-Heard & Activity Log | ✅ Complete | Public + authenticated views; [spec](../006-last-heard-activity-log/spec.md) |
 | F10 | Network Status Dashboard | ✅ Complete | [spec](../010-network-status-dashboard/spec.md) |
-| F11 | Moderation Tools | Not started | Depends on F2, F3 |
-| F12 | Node Management | Not started | Depends on F7, AD-1 |
-| F13 | Controlled Restart / Reload | Not started | Depends on F7, AD-1 |
-| F14 | Backup & Rollback | Not started | Depends on F13 |
-| F15 | Theming & Customization | Not started | Depends on F2 |
-| F16 | User Messaging | Not started | Depends on F3 |
-| F17 | Community Chat Channels | Not started | Depends on F3 |
-| F18 | Radio Programming Tools | Not started | Depends on F5 |
-| F19 | Club System | Not started | Depends on F3, F6 |
-| F20 | Invite System | Not started | Ships with or after F3 |
+| F11 | Extended User Profiles | ✅ Complete | Grid square, bio, name opt-in, phone (admin-only); [spec](../013-extended-profiles/spec.md) |
+| F12 | Public User Directory | ✅ Complete | Paginated/searchable member list at /users; [spec](../014-user-directory/spec.md) |
+| F13 | Moderation Tools | Not started | Depends on F2, F3 |
+| F14 | Node Management | Not started | Depends on F7, AD-1 |
+| F15 | Controlled Restart / Reload | Not started | Depends on F7, AD-1 |
+| F16 | Backup & Rollback | Not started | Depends on F15 |
+| F17 | Theming & Customization | Not started | Depends on F2 |
+| F18 | User Messaging | Not started | Depends on F3 |
+| F19 | Community Chat Channels | Not started | Depends on F3 |
+| F20 | Radio Programming Tools | Not started | Depends on F5 |
+| F21 | Club System | Not started | Depends on F3, F6 |
+| F22 | Invite System | Not started | Ships with or after F3 |
 
 ---
 
