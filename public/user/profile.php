@@ -42,6 +42,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'request_callsign') {
             $result = submit_callsign_request($user_id, $_POST['new_callsign'] ?? '', $_POST['explanation'] ?? '');
             $_SESSION[$result['ok'] ? '_flash_ok' : '_flash_error'] = $result['ok'] ? 'Callsign update request submitted.' : $result['error'];
+
+        } elseif ($action === 'update_extended') {
+            $result = update_extended_profile($user_id, $_POST);
+            $_SESSION[$result['ok'] ? '_flash_ok' : '_flash_error'] = $result['ok'] ? 'Extended profile saved.' : $result['error'];
         }
 
         header('Location: /user/profile.php');
@@ -158,6 +162,83 @@ require_once $root . '/app/views/header.php';
                         <button type="submit" class="btn btn-primary btn-sm">
                             <?= $pending_email !== null ? 'Request New Change' : 'Request Email Change' ?>
                         </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Extended profile -->
+        <div class="panel">
+            <div class="panel-header"><span class="panel-title">Extended Profile</span></div>
+            <div class="panel-body">
+                <form method="post">
+                    <input type="hidden" name="action" value="update_extended">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+
+                    <!-- Identity -->
+                    <span class="form-section-label">Identity</span>
+                    <div class="form-row" style="gap:1rem;">
+                        <div class="form-group" style="flex:1;min-width:0;">
+                            <label for="first_name">First Name</label>
+                            <input type="text" id="first_name" name="first_name" maxlength="64"
+                                   style="max-width:220px;"
+                                   value="<?= htmlspecialchars($profile['first_name'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                        </div>
+                        <div class="form-group" style="flex:1;min-width:0;">
+                            <label for="last_name">Last Name</label>
+                            <input type="text" id="last_name" name="last_name" maxlength="64"
+                                   style="max-width:220px;"
+                                   value="<?= htmlspecialchars($profile['last_name'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                        </div>
+                        <div class="form-group" style="flex:0 0 auto;">
+                            <label for="grid_square">Grid Square</label>
+                            <input type="text" id="grid_square" name="grid_square" maxlength="8"
+                                   placeholder="e.g. FN42aa"
+                                   style="text-transform:uppercase;width:120px;"
+                                   value="<?= htmlspecialchars($profile['grid_square'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                            <p class="form-hint">Maidenhead locator</p>
+                        </div>
+                    </div>
+
+                    <div class="form-divider"></div>
+
+                    <!-- About -->
+                    <span class="form-section-label">About</span>
+                    <div class="form-group">
+                        <label for="bio">Bio</label>
+                        <textarea id="bio" name="bio" maxlength="500" rows="4"
+                                  style="max-width:560px;"><?= htmlspecialchars($profile['bio'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                        <p class="form-hint">Max 500 characters. Visible to all logged-in users.</p>
+                    </div>
+
+                    <div class="form-divider"></div>
+
+                    <!-- Contact & privacy -->
+                    <span class="form-section-label">Contact &amp; Privacy</span>
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="text" id="phone" name="phone" maxlength="32"
+                               style="max-width:220px;"
+                               value="<?= htmlspecialchars($profile['phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                        <p class="form-hint">Visible to admins only — never shown publicly.</p>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:normal;">
+                            <input type="checkbox" name="show_name_publicly" value="1"
+                                   <?= !empty($profile['show_name_publicly']) ? 'checked' : '' ?>>
+                            Show my name to other logged-in users
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:normal;">
+                            <input type="checkbox" name="show_in_directory" value="1"
+                                   <?= !isset($profile['show_in_directory']) || $profile['show_in_directory'] ? 'checked' : '' ?>>
+                            Show me in the user directory
+                        </label>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary btn-sm">Save Extended Profile</button>
                     </div>
                 </form>
             </div>

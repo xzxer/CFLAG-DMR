@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 No feature currently in active development on dev.
 
-Completed: P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), F3 (User Registration & Accounts), F4 (User Profiles), F5 (Hotspot & Repeater Registration), F6 (Talkgroup Management), F7 (Network Config & Peer Management), F8 (HBLink Config Visibility), F9 (Last-Heard & Activity Log), F10 (Network Status Dashboard).
+Completed: P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), F3 (User Registration & Accounts), F4 (User Profiles), F5 (Hotspot & Repeater Registration), F6 (Talkgroup Management), F7 (Network Config & Peer Management), F8 (HBLink Config Visibility), F9 (Last-Heard & Activity Log), F10 (Network Status Dashboard), F11 (Extended User Profiles), F12 (Public User Directory).
 
 Key data contracts:
 - get_whitelist_eligible_dmr_ids() → app/devices/manager.php (F7 REG_ACL source)

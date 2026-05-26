@@ -186,7 +186,7 @@ function generate_hblink_config(int $actor_id): array
     ]);
 
     get_db()->prepare(
-        'DELETE FROM config_change_queue WHERE triggered_at <= NOW()'
+        'DELETE FROM config_change_queue WHERE created_at <= NOW()'
     )->execute();
 
     log_audit_action($actor_id, 'config_generated', 'config', null, [

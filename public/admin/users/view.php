@@ -20,7 +20,9 @@ if ($user_id === 0) {
 $stmt = $db->prepare(
     'SELECT id, username, callsign, email, display_name, dmr_id,
             moderation_state, mute_expires_at, tier, last_login_at, created_at,
-            email_verified_at
+            email_verified_at,
+            first_name, last_name, grid_square, bio, phone,
+            show_name_publicly, show_in_directory
      FROM users WHERE id = ?'
 );
 $stmt->execute([$user_id]);
@@ -244,6 +246,53 @@ require_once $root . '/app/views/header.php';
                     </form>
                 </div>
                 <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Extended profile (admin sees all fields) -->
+        <div class="panel">
+            <div class="panel-header"><span class="panel-title">Extended Profile</span></div>
+            <div class="panel-body">
+                <div class="field-list">
+                    <div class="field-row">
+                        <span class="field-key">First Name</span>
+                        <span class="field-val"><?= htmlspecialchars($user['first_name'] ?? '—', ENT_QUOTES, 'UTF-8') ?></span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">Last Name</span>
+                        <span class="field-val"><?= htmlspecialchars($user['last_name'] ?? '—', ENT_QUOTES, 'UTF-8') ?></span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">Grid Square</span>
+                        <span class="field-val col-mono"><?= htmlspecialchars($user['grid_square'] ?? '—', ENT_QUOTES, 'UTF-8') ?></span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">Bio</span>
+                        <span class="field-val" style="white-space:pre-wrap;font-size:0.82rem;color:var(--text-2);">
+                            <?= $user['bio'] ? htmlspecialchars($user['bio'], ENT_QUOTES, 'UTF-8') : '<span style="color:var(--text-3);">—</span>' ?>
+                        </span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">Phone <span style="font-size:0.7rem;color:var(--text-3);">(admin-only)</span></span>
+                        <span class="field-val col-mono"><?= htmlspecialchars($user['phone'] ?? '—', ENT_QUOTES, 'UTF-8') ?></span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">Name Public</span>
+                        <span class="field-val">
+                            <?= $user['show_name_publicly']
+                                ? '<span class="badge badge-active">Yes</span>'
+                                : '<span class="badge badge-gray">No</span>' ?>
+                        </span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">In Directory</span>
+                        <span class="field-val">
+                            <?= $user['show_in_directory']
+                                ? '<span class="badge badge-active">Yes</span>'
+                                : '<span class="badge badge-gray">No</span>' ?>
+                        </span>
+                    </div>
+                </div>
             </div>
         </div>
 
