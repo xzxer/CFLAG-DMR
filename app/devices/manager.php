@@ -145,7 +145,7 @@ function register_device(int $user_id, array $data): array
 function get_pending_devices(): array
 {
     $stmt = get_db()->prepare(
-        'SELECT d.id, d.callsign, d.dmr_id, d.ssid_suffix, d.peer_id,
+        'SELECT d.id, d.user_id, d.callsign, d.dmr_id, d.ssid_suffix, d.peer_id,
                 d.device_type, d.hardware_desc, d.created_at,
                 u.display_name, u.username, u.email
          FROM devices d

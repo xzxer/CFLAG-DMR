@@ -36,15 +36,15 @@ function generate_bridge_routes_json(): array
     $subscribed_tgs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Also include OpenBridge-linked talkgroups (these create cross-system bridge rules)
-    $ob_stmt = $db->prepare(
-        "SELECT tg.id, tg.tgid, tg.name, ob.name AS ob_name, ob.id AS ob_id
-         FROM openbridge_talkgroup_links otl
-         JOIN talkgroups tg ON tg.id = otl.talkgroup_id
-         JOIN openbridge_connections ob ON ob.id = otl.connection_id
-         WHERE ob.enabled = 1 AND tg.active = 1"
-    );
-    // Table may not exist yet — graceful fallback
+    // Table may not exist yet — graceful fallback wraps both prepare and execute
     try {
+        $ob_stmt = $db->prepare(
+            "SELECT tg.id, tg.tgid, tg.name, ob.name AS ob_name, ob.id AS ob_id
+             FROM openbridge_talkgroup_links otl
+             JOIN talkgroups tg ON tg.id = otl.talkgroup_id
+             JOIN openbridge_connections ob ON ob.id = otl.connection_id
+             WHERE ob.enabled = 1 AND tg.active = 1"
+        );
         $ob_stmt->execute();
         $ob_links = $ob_stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (\PDOException) {
