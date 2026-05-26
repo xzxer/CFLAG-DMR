@@ -11,8 +11,8 @@
 
 **Purpose**: Write and apply the shared database migration.
 
-- [ ] T001 Write `migrations/015_extend_user_profiles_directory.sql` — ALTER TABLE users ADD COLUMN first_name VARCHAR(64) NULL, last_name VARCHAR(64) NULL, grid_square VARCHAR(8) NULL, bio TEXT NULL, phone VARCHAR(32) NULL, show_name_publicly TINYINT(1) NOT NULL DEFAULT 0, show_in_directory TINYINT(1) NOT NULL DEFAULT 1
-- [ ] T002 Apply migration to dev DB: `mysql -u cflag_dmr_user -p cflag_dmr_dev < migrations/015_extend_user_profiles_directory.sql`
+- [x] T001 Write `migrations/015_extend_user_profiles_directory.sql` — ALTER TABLE users ADD COLUMN first_name VARCHAR(64) NULL, last_name VARCHAR(64) NULL, grid_square VARCHAR(8) NULL, bio TEXT NULL, phone VARCHAR(32) NULL, show_name_publicly TINYINT(1) NOT NULL DEFAULT 0, show_in_directory TINYINT(1) NOT NULL DEFAULT 1
+- [x] T002 Apply migration to dev DB: `mysql -u cflag_dmr_user -p cflag_dmr_dev < migrations/015_extend_user_profiles_directory.sql`
 
 **Checkpoint**: `DESCRIBE users` shows all 7 new columns. No user story work starts until T002 is confirmed.
 
@@ -24,7 +24,7 @@
 
 **⚠️ CRITICAL**: All user stories depend on get_profile() returning the extended fields.
 
-- [ ] T003 Extend `get_profile()` in `app/profile/manager.php` — update the SELECT to include first_name, last_name, grid_square, bio, phone, show_name_publicly, show_in_directory
+- [x] T003 Extend `get_profile()` in `app/profile/manager.php` — update the SELECT to include first_name, last_name, grid_square, bio, phone, show_name_publicly, show_in_directory
 
 **Checkpoint**: `get_profile($user_id)` returns all new columns (including NULL for unset fields).
 
@@ -36,9 +36,9 @@
 
 **Independent Test**: Log in, navigate to `/user/profile.php`, fill in grid square + bio, save, reload — confirm values persisted and displayed.
 
-- [ ] T004 [US1] Add `update_extended_profile(int $user_id, array $data): array` to `app/profile/manager.php` — trim all fields; validate grid_square with `/^[A-Ra-r]{2}[0-9]{2}([A-Xa-x]{2})?$/` (4 or 6 char Maidenhead), store uppercase; validate bio max 500 chars; validate first_name/last_name max 64 chars; validate phone max 32 chars; UPDATE users SET first_name=?, last_name=?, grid_square=?, bio=?, phone=?, show_name_publicly=?, show_in_directory=? WHERE id=?; log_audit_action; return ['ok'=>true] or ['ok'=>false,'error'=>'...']
-- [ ] T005 [US1] Add POST handler `action='update_extended'` to `public/user/profile.php` — call update_extended_profile($user_id, $_POST); PRG redirect with session flash
-- [ ] T006 [US1] Add "Extended Profile" form section to `public/user/profile.php` — inside a new `.panel` after the display name panel; fields: first_name (text, max 64), last_name (text, max 64), grid_square (text, max 8, placeholder "e.g. FN42aa"), bio (textarea, max 500), phone (text, max 32, hint "Visible to admins only"); checkbox show_name_publicly with label "Show my name to other logged-in users"; checkbox show_in_directory with label "Show me in the user directory"; values pre-filled from $user (get_profile result); submit button action=update_extended; CSRF token; htmlspecialchars on all values
+- [x] T004 [US1] Add `update_extended_profile(int $user_id, array $data): array` to `app/profile/manager.php` — trim all fields; validate grid_square with `/^[A-Ra-r]{2}[0-9]{2}([A-Xa-x]{2})?$/` (4 or 6 char Maidenhead), store uppercase; validate bio max 500 chars; validate first_name/last_name max 64 chars; validate phone max 32 chars; UPDATE users SET first_name=?, last_name=?, grid_square=?, bio=?, phone=?, show_name_publicly=?, show_in_directory=? WHERE id=?; log_audit_action; return ['ok'=>true] or ['ok'=>false,'error'=>'...']
+- [x] T005 [US1] Add POST handler `action='update_extended'` to `public/user/profile.php` — call update_extended_profile($user_id, $_POST); PRG redirect with session flash
+- [x] T006 [US1] Add "Extended Profile" form section to `public/user/profile.php` — inside a new `.panel` after the display name panel; fields: first_name (text, max 64), last_name (text, max 64), grid_square (text, max 8, placeholder "e.g. FN42aa"), bio (textarea, max 500), phone (text, max 32, hint "Visible to admins only"); checkbox show_name_publicly with label "Show my name to other logged-in users"; checkbox show_in_directory with label "Show me in the user directory"; values pre-filled from $user (get_profile result); submit button action=update_extended; CSRF token; htmlspecialchars on all values
 
 **Checkpoint**: Extended profile section saves and reloads correctly. Grid square validation rejects "ZZ". Bio over 500 chars is rejected.
 
@@ -50,7 +50,7 @@
 
 **Independent Test**: As testuser, set grid square + bio + enable name opt-in. As testuser2, visit `/user/view.php?id=<testuser_id>` — see grid/bio/name. Phone NOT visible.
 
-- [ ] T007 [US2] Create `public/user/view.php` — require_login(); $target_id = (int)($_GET['id'] ?? 0); redirect to /users if target not found or not active; load user via get_profile($target_id); apply visibility: always show callsign/display_name/grid_square/bio if set; show first_name/last_name only if $user['show_name_publicly']; never show phone; $page_title = callsign or display_name; $active_nav = 'users'; require header/footer; layout: `.layout-single` with single `.panel`; field-list showing: callsign (col-mono accent), display_name, grid_square (if set), bio (if set), name (if show_name_publicly and set), device count (query approved devices for this user); link back to "/users" directory
+- [x] T007 [US2] Create `public/user/view.php` — require_login(); $target_id = (int)($_GET['id'] ?? 0); redirect to /users if target not found or not active; load user via get_profile($target_id); apply visibility: always show callsign/display_name/grid_square/bio if set; show first_name/last_name only if $user['show_name_publicly']; never show phone; $page_title = callsign or display_name; $active_nav = 'users'; require header/footer; layout: `.layout-single` with single `.panel`; field-list showing: callsign (col-mono accent), display_name, grid_square (if set), bio (if set), name (if show_name_publicly and set), device count (query approved devices for this user); link back to "/users" directory
 
 **Checkpoint**: Visiting `/user/view.php?id=X` as another user shows correct fields. Phone never appears. Unauthenticated visitor is redirected to login.
 
@@ -62,7 +62,7 @@
 
 **Independent Test**: As system_admin, view `/admin/users/view.php?id=X` for a user who has phone set — phone number is visible.
 
-- [ ] T008 [US3] Extend admin user view in `public/admin/users/view.php` — update the user query (or re-use get_profile which now returns all columns); add an "Extended Profile" field-list section to the admin info panel showing: first_name, last_name, grid_square, bio, phone (all displayed regardless of opt-in flags); show "—" for unset fields; phone labeled "Phone (admin-only)"; no edit controls (admin view is read-only for these fields)
+- [x] T008 [US3] Extend admin user view in `public/admin/users/view.php` — update the user query (or re-use get_profile which now returns all columns); add an "Extended Profile" field-list section to the admin info panel showing: first_name, last_name, grid_square, bio, phone (all displayed regardless of opt-in flags); show "—" for unset fields; phone labeled "Phone (admin-only)"; no edit controls (admin view is read-only for these fields)
 
 **Checkpoint**: Admin user view shows phone for a user who has it set. Non-admin profile view does not.
 
@@ -74,7 +74,7 @@
 
 **Independent Test**: Navigate to `/users` as any logged-in user — see a table of users, click one — arrive at their profile view page.
 
-- [ ] T009 [P] [F12-US1] Create `app/users/directory.php` — functions: `get_directory_users(int $page, int $per_page, bool $admin = false): array` (SELECT u.id, u.callsign, u.username, u.display_name, u.grid_square, u.show_name_publicly, u.first_name, u.last_name, (SELECT COUNT(*) FROM devices d WHERE d.user_id=u.id AND d.status='approved') AS device_count FROM users u WHERE u.moderation_state='active' AND u.email_verified_at IS NOT NULL AND ($admin OR u.show_in_directory=1) ORDER BY COALESCE(u.callsign,'') = '' ASC, u.callsign ASC, u.username ASC LIMIT ? OFFSET ?); `count_directory_users(bool $admin = false): int` (same WHERE, returns COUNT(*))
+- [x] T009 [P] [F12-US1] Create `app/users/directory.php` — functions: `get_directory_users(int $page, int $per_page, bool $admin = false): array` (SELECT u.id, u.callsign, u.username, u.display_name, u.grid_square, u.show_name_publicly, u.first_name, u.last_name, (SELECT COUNT(*) FROM devices d WHERE d.user_id=u.id AND d.status='approved') AS device_count FROM users u WHERE u.moderation_state='active' AND u.email_verified_at IS NOT NULL AND ($admin OR u.show_in_directory=1) ORDER BY COALESCE(u.callsign,'') = '' ASC, u.callsign ASC, u.username ASC LIMIT ? OFFSET ?); `count_directory_users(bool $admin = false): int` (same WHERE, returns COUNT(*))
 - [ ] T010 [F12-US1] Implement `public/users.php` — require_login(); $is_admin = user_has_role('system_admin') || user_has_role('admin'); $q = trim($_GET['q'] ?? ''); $page = max(1, (int)($_GET['page'] ?? 1)); $per_page = 50; require_once app/users/directory.php; if $q !== '' use search function (T011), else get_directory_users; total count for pagination; $active_nav = 'users'; $page_title = 'User Directory'; layout: `.layout-table-page`; filter bar with search input + Search button + Clear link; panel with data-table (cols: Callsign, Display Name, Grid Square, Devices); callsign/display_name links to `/user/view.php?id=X`; empty state "No users match your search" or "No users in directory"; pagination in panel-footer using .pagination class with prev/next page links
 
 **Checkpoint**: `/users` shows paginated list. Clicking a user goes to their profile view. Opted-out users absent (when logged in as non-admin).
