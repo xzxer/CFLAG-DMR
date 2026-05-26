@@ -7,7 +7,7 @@ require_once dirname(__DIR__) . '/app/auth/login.php';
 start_session();
 
 if (is_logged_in()) {
-    redirect('/admin/');
+    redirect('/');
 }
 
 $error       = '';
@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $result = attempt_login($_POST['username'], $_POST['password']);
         if ($result === LOGIN_OK) {
-            redirect('/admin/');
+            redirect('/');
         } elseif ($result === LOGIN_UNVERIFIED) {
             $error       = 'Please verify your email address before logging in.';
             $show_resend = true;

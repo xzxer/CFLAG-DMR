@@ -57,7 +57,7 @@ function require_role(string $min_role): void
     $user = current_user();
     if ($user === null || !user_has_role((int) $user['id'], $min_role)) {
         header('HTTP/1.1 403 Forbidden');
-        redirect('/admin/');
+        redirect('/');
     }
 }
 

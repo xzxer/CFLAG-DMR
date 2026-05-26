@@ -294,7 +294,7 @@ $owned_tgs    = get_owned_talkgroups($user_id);
         </section>
 
         <p style="margin-top:1.5rem;">
-            <a href="/user/" class="nav-link">← Dashboard</a>
+            <a href="/" class="nav-link">← Dashboard</a>
         </p>
 
     </main>

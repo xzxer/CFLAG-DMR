@@ -31,11 +31,12 @@ $pending_tg_count     = $is_sysadmin ? count(get_pending_talkgroup_requests()) :
         <section class="card">
             <p class="eyebrow">CFLAG DMR</p>
             <h1>Welcome, <?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?></h1>
-            <p class="muted">You are logged in to the CFLAG DMR admin dashboard.</p>
+            <p class="muted">Admin dashboard — manage users, devices, talkgroups, and server configuration.</p>
             <p style="margin-top: 2rem; display: flex; gap: 1.5rem; flex-wrap: wrap;">
                 <?php if (user_has_role((int) $_SESSION['user_id'], 'system_admin')): ?>
                     <a href="/admin/users/" class="nav-link">User Management</a>
                 <?php endif; ?>
+                <a href="/" class="nav-link">← Site Dashboard</a>
                 <a href="/logout.php" class="nav-link">Log out</a>
             </p>
         </section>
