@@ -1,10 +1,10 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/005-hblink-config-visibility/plan.md
+at specs/006-last-heard-activity-log/plan.md
 
-The current active phase is F8: HBLink Config Visibility (specs/005-hblink-config-visibility/).
-P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), and F3 (User Registration & Accounts) are complete.
+The current active phase is F9: Last-Heard & Activity Log (specs/006-last-heard-activity-log/).
+P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), F3 (User Registration & Accounts), and F8 (HBLink Config Visibility) are complete.
 <!-- SPECKIT END -->
 
 ## Current Architecture Direction
