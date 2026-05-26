@@ -30,6 +30,7 @@ $is_sysadmin = user_has_role($user_id, 'system_admin');
                 <a href="/user/devices.php" class="nav-link">My Devices</a>
                 <a href="/user/talkgroups.php" class="nav-link">Talkgroups</a>
                 <a href="/talkgroups.php" class="nav-link">Network Talkgroups</a>
+                <a href="/network-status.php" class="nav-link">Network Status</a>
                 <a href="/last-heard.php" class="nav-link">Last Heard</a>
                 <a href="/logout.php" class="nav-link">Log out</a>
             </p>
