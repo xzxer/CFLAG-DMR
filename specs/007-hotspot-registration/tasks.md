@@ -94,7 +94,7 @@
 - [x] T012 Add `get_whitelist_eligible_dmr_ids(): array` to `app/devices/manager.php` — SELECT d.dmr_id FROM devices d JOIN users u ON u.id=d.user_id WHERE d.status='approved' AND u.moderation_state='active'; returns flat array of DMR ID integers (F7 data contract)
 - [x] T013 Update `public/admin/index.php` — after Last Heard card, add "Devices" card section (`$pending_device_count` queried inline): eyebrow "Devices", heading "Pending Approvals", show count or "No pending registrations"; link to `/admin/devices/`; visible to system_admin only (wrap in `if ($is_sysadmin)`)
 - [x] T014 Add `.badge-pending { background: #854d0e; color: #fef9c3; border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; font-weight: 600; }` CSS rule to `public/assets/css/app.css` after existing `.badge` rules
-- [ ] T015 Update `specs/000-project-overview/spec.md` — change F5 status from "🔄 In Progress" to "✅ Complete"
+- [x] T015 Update `specs/000-project-overview/spec.md` — change F5 status from "🔄 In Progress" to "✅ Complete"
 - [ ] T016 Verify mobile responsiveness — confirm device list table wrapped in `<div class="lh-table-wrap">` for horizontal scroll on 375px; confirm registration form inputs are full-width; confirm action buttons meet 44px touch target
 - [ ] T017 Run all quickstart.md scenarios 1.1–W.2 on dev server and confirm expected outcomes
 

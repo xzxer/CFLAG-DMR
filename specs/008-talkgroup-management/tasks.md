@@ -99,7 +99,7 @@
 
 - [x] T018 Update `public/admin/index.php` — add Talkgroup Management card section (after Last Heard card, before HBLink card): eyebrow "Talkgroups", heading "Management", show count of pending talkgroup requests (query talkgroup_requests WHERE status='pending'); link to `/admin/talkgroups/` and to `/admin/talkgroups/requests.php` with pending count; visible to system_admin only
 - [x] T019 Update `public/talkgroups.php` — add "Last Heard" link (`<a href="/last-heard.php" class="nav-link">Last Heard</a>`) alongside ← Home nav so public pages cross-link
-- [ ] T020 Update `specs/000-project-overview/spec.md` — change F6 status from "🔄 In Progress" to "✅ Complete"
+- [x] T020 Update `specs/000-project-overview/spec.md` — change F6 status from "🔄 In Progress" to "✅ Complete"
 - [ ] T021 Verify mobile responsiveness — confirm lh-table-wrap overflow-x on talkgroup tables; filter/search inputs full-width on 375px; buttons 44px touch target minimum; admin talkgroup table scrollable on tablet
 - [ ] T022 Run all quickstart.md scenarios 1.1–F7.1 on dev server and confirm expected outcomes
 

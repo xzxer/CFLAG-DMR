@@ -2,7 +2,7 @@
 
 **Feature Branch**: `dev` (project-level document; not feature-branch-scoped)
 
-**Created**: 2026-05-24 | **Last Updated**: 2026-05-25 (role model, talkgroup ownership, moderation states, club/invite system added)
+**Created**: 2026-05-24 | **Last Updated**: 2026-05-26 (F4, F5, F6, F7, F10 marked complete)
 
 **Status**: Active — canonical product scope reference
 
@@ -93,13 +93,13 @@ Four access tiers, each building on the previous:
 | F1 | Admin Authentication | ✅ Complete | [spec](../001-admin-login/plan.md) |
 | F2 | Role & Permission System | ✅ Complete | [spec](../003-role-permission-system/spec.md) |
 | F3 | User Registration & Accounts | ✅ Complete | [spec](../004-user-registration/spec.md) |
-| F4 | User Profiles | Not started | Depends on F3 |
-| F5 | Hotspot & Repeater Registration | 🔄 In Progress | Depends on F3, AD-2; [spec](../007-hotspot-registration/spec.md) |
-| F6 | Talkgroup Management | 🔄 In Progress | Depends on F2, AD-1; [spec](../008-talkgroup-management/spec.md) |
-| F7 | Network Config & Peer Management | Not started | Depends on F2, AD-1 |
+| F4 | User Profiles | ✅ Complete | [spec](../011-user-profiles/spec.md) |
+| F5 | Hotspot & Repeater Registration | ✅ Complete | [spec](../007-hotspot-registration/spec.md) |
+| F6 | Talkgroup Management | ✅ Complete | [spec](../008-talkgroup-management/spec.md) |
+| F7 | Network Config & Peer Management | ✅ Complete | [spec](../009-network-config-gen/spec.md) |
 | F8 | HBLink Config Visibility | ✅ Complete | Read-only viewer; [spec](../005-hblink-config-visibility/spec.md) |
 | F9 | Last-Heard & Activity Log | ✅ Complete | Public + authenticated views; [spec](../006-last-heard-activity-log/spec.md) |
-| F10 | Network Status Dashboard | Not started | Public-facing |
+| F10 | Network Status Dashboard | ✅ Complete | [spec](../010-network-status-dashboard/spec.md) |
 | F11 | Moderation Tools | Not started | Depends on F2, F3 |
 | F12 | Node Management | Not started | Depends on F7, AD-1 |
 | F13 | Controlled Restart / Reload | Not started | Depends on F7, AD-1 |
