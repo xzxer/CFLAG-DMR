@@ -8,16 +8,16 @@ require_once $root . '/app/talkgroups/manager.php';
 start_session();
 require_role('system_admin');
 
-$admin_id    = (int) $_SESSION['user_id'];
-$tg_id       = (int) ($_GET['id'] ?? 0);
-$tg          = $tg_id > 0 ? get_talkgroup($tg_id) : null;
-$flash_ok    = null;
-$flash_error = null;
+$admin_id = (int) $_SESSION['user_id'];
+$tg_id    = (int) ($_GET['id'] ?? 0);
+$tg       = $tg_id > 0 ? get_talkgroup($tg_id) : null;
 
 if (!$tg) {
     header('Location: /admin/talkgroups/');
     exit;
 }
+
+$flash_error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf($_POST['csrf_token'] ?? '')) {
@@ -32,31 +32,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tg = get_talkgroup($tg_id);
     }
 }
-?>
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Edit Talkgroup — CFLAG DMR</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/assets/css/app.css">
-</head>
-<body>
-    <main class="page">
-        <section class="card">
-            <p class="eyebrow">Admin</p>
-            <h1>Edit Talkgroup</h1>
 
+$page_title = 'Edit Talkgroup';
+$active_nav = 'admin-talkgroups';
+require_once $root . '/app/views/header.php';
+?>
+
+<div class="layout-single">
+    <div class="panel" style="align-self:start;max-width:540px;">
+        <div class="panel-header">
+            <span class="panel-title">Edit Talkgroup — TG <?= htmlspecialchars((string)$tg['tgid'], ENT_QUOTES, 'UTF-8') ?></span>
+            <div class="panel-actions">
+                <a href="/admin/talkgroups/" class="btn btn-ghost btn-xs">← Talkgroups</a>
+            </div>
+        </div>
+        <div class="panel-body">
             <?php if ($flash_error !== null): ?>
-            <div class="alert-error"><?= htmlspecialchars($flash_error, ENT_QUOTES, 'UTF-8') ?></div>
+            <div class="alert alert-error" style="margin-bottom:0.75rem;"><?= htmlspecialchars($flash_error, ENT_QUOTES, 'UTF-8') ?></div>
             <?php endif; ?>
 
             <form method="post">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
 
-                <div class="field-row" style="margin-bottom:0.75rem;">
-                    <span class="field-label">TGID</span>
-                    <span class="field-value"><?= htmlspecialchars((string)$tg['tgid'], ENT_QUOTES, 'UTF-8') ?></span>
+                <div class="field-list" style="margin-bottom:0.875rem;">
+                    <div class="field-row">
+                        <span class="field-key">TGID</span>
+                        <span class="field-val col-mono" style="color:var(--accent-text);">
+                            <?= htmlspecialchars((string)$tg['tgid'], ENT_QUOTES, 'UTF-8') ?>
+                        </span>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -67,26 +71,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="form-group">
                     <label for="description">Description</label>
-                    <textarea id="description" name="description" maxlength="2000"
-                              style="min-height:80px;"><?= htmlspecialchars($tg['description'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                    <textarea id="description" name="description" maxlength="2000"><?= htmlspecialchars($tg['description'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
                 </div>
 
                 <div class="form-group">
                     <label for="tg_type">Type</label>
-                    <select id="tg_type" name="tg_type">
+                    <select id="tg_type" name="tg_type" class="form-select">
                         <?php foreach (['open', 'private', 'club'] as $t): ?>
-                        <option value="<?= $t ?>" <?= $tg['tg_type'] === $t ? 'selected' : '' ?>><?= ucfirst($t) ?></option>
+                        <option value="<?= $t ?>" <?= $tg['tg_type'] === $t ? 'selected' : '' ?>>
+                            <?= ucfirst($t) ?>
+                        </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
 
-                <button type="submit" class="btn">Save Changes</button>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <a href="/admin/talkgroups/" class="btn btn-ghost">Cancel</a>
+                </div>
             </form>
+        </div>
+    </div>
+</div>
 
-            <p style="margin-top:1rem;">
-                <a href="/admin/talkgroups/" class="nav-link">← Back to Talkgroups</a>
-            </p>
-        </section>
-    </main>
-</body>
-</html>
+<?php require_once $root . '/app/views/footer.php'; ?>

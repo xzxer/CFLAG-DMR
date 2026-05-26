@@ -19,26 +19,19 @@ if ($result['ok']) {
     }
     exit;
 }
+
+$page_title = 'Email Change';
+require_once $root . '/app/views/auth_header.php';
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Email Change — CFLAG DMR</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/assets/css/app.css">
-</head>
-<body>
-    <main class="page">
-        <section class="card" style="width:min(420px,100%);">
-            <p class="eyebrow">CFLAG DMR</p>
-            <h1>Email Change</h1>
-            <div class="alert-error"><?= htmlspecialchars($result['error'] ?? 'Invalid link.', ENT_QUOTES, 'UTF-8') ?></div>
-            <p style="margin-top:1.5rem;">
-                <a href="/" class="nav-link">&#8592; Dashboard</a>
-                <a href="/user/profile.php" class="nav-link" style="margin-left:1.5rem;">My Profile</a>
-            </p>
-        </section>
-    </main>
-</body>
-</html>
+<div class="auth-card">
+    <div class="auth-brand">CFLAG DMR</div>
+    <div class="auth-title">Email Change</div>
+    <div class="alert alert-error">
+        <?= htmlspecialchars($result['error'] ?? 'Invalid link.', ENT_QUOTES, 'UTF-8') ?>
+    </div>
+    <div style="display:flex;gap:1rem;margin-top:1rem;justify-content:center;font-size:0.78rem;">
+        <a href="/">Dashboard</a>
+        <a href="/user/profile.php">My Profile</a>
+    </div>
+</div>
+<?php require_once $root . '/app/views/auth_footer.php'; ?>

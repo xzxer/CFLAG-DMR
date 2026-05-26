@@ -8,13 +8,11 @@ require_once $root . '/app/profile/callsign.php';
 start_session();
 require_role('system_admin');
 
-$actor_id    = (int) $_SESSION['user_id'];
-$flash_ok    = null;
-$flash_error = null;
+$actor_id = (int) $_SESSION['user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf($_POST['csrf_token'] ?? '')) {
-        $flash_error = 'Invalid request.';
+        $_SESSION['_flash_error'] = 'Invalid request.';
     } else {
         $action     = $_POST['action'] ?? '';
         $request_id = (int) ($_POST['request_id'] ?? 0);
@@ -22,106 +20,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($action === 'approve' && $request_id > 0) {
             $result = approve_callsign_request($request_id, $actor_id, $notes);
-            if ($result['ok']) {
-                $flash_ok = 'Callsign request approved.';
-            } else {
-                $flash_error = $result['error'];
-            }
-
+            $_SESSION[$result['ok'] ? '_flash_ok' : '_flash_error'] = $result['ok'] ? 'Callsign request approved.' : $result['error'];
         } elseif ($action === 'deny' && $request_id > 0) {
             if ($notes === '') {
-                $flash_error = 'Please provide a reason for denial.';
+                $_SESSION['_flash_error'] = 'Please provide a reason for denial.';
             } else {
                 $result = deny_callsign_request($request_id, $actor_id, $notes);
-                if ($result['ok']) {
-                    $flash_ok = 'Callsign request denied.';
-                } else {
-                    $flash_error = $result['error'];
-                }
+                $_SESSION[$result['ok'] ? '_flash_ok' : '_flash_error'] = $result['ok'] ? 'Callsign request denied.' : $result['error'];
             }
         }
     }
+    header('Location: /admin/users/callsign-requests.php');
+    exit;
 }
 
+$flash_ok    = $_SESSION['_flash_ok']    ?? null; unset($_SESSION['_flash_ok']);
+$flash_error = $_SESSION['_flash_error'] ?? null; unset($_SESSION['_flash_error']);
+
 $pending = get_pending_callsign_requests();
+
+$page_title = 'Callsign Requests';
+$active_nav = 'admin-users';
+require_once $root . '/app/views/header.php';
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Callsign Requests — CFLAG DMR</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/assets/css/app.css">
-</head>
-<body>
-    <main class="page">
 
-        <?php if ($flash_ok !== null): ?>
-        <div class="card" style="background:#14532d;color:#bbf7d0;margin-bottom:1rem;padding:0.75rem 1rem;">
-            <?= htmlspecialchars($flash_ok, ENT_QUOTES, 'UTF-8') ?>
+<?php if ($flash_ok):    ?><div class="alert alert-success" style="margin-bottom:0.75rem;flex-shrink:0;"><?= htmlspecialchars($flash_ok,    ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
+<?php if ($flash_error): ?><div class="alert alert-error"   style="margin-bottom:0.75rem;flex-shrink:0;"><?= htmlspecialchars($flash_error, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
+
+<div class="layout-single">
+    <div class="panel">
+        <div class="panel-header">
+            <span class="panel-title">Pending Callsign Requests</span>
+            <div class="panel-actions">
+                <a href="/admin/users/" class="btn btn-ghost btn-xs">← Users</a>
+            </div>
         </div>
-        <?php endif; ?>
-        <?php if ($flash_error !== null): ?>
-        <div class="card" style="background:#450a0a;color:#fca5a5;margin-bottom:1rem;padding:0.75rem 1rem;">
-            <?= htmlspecialchars($flash_error, ENT_QUOTES, 'UTF-8') ?>
-        </div>
-        <?php endif; ?>
-
-        <section class="card">
-            <p class="eyebrow">User Management</p>
-            <h1>Callsign Update Requests</h1>
-            <p style="margin-top:1rem;">
-                <a href="/admin/users/" class="nav-link">&#8592; User Management</a>
-            </p>
-        </section>
-
-        <section class="card" style="margin-top:1.5rem;">
+        <div class="panel-body">
             <?php if (empty($pending)): ?>
-            <p class="muted" style="font-size:0.9rem;">No pending callsign update requests.</p>
+            <div class="empty-state">
+                <strong>No pending requests</strong>
+            </div>
             <?php else: ?>
             <?php foreach ($pending as $req): ?>
-            <div style="border:1px solid #334155;border-radius:10px;padding:1rem;margin-bottom:1rem;">
-                <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:baseline;margin-bottom:0.5rem;">
-                    <span style="font-size:0.85rem;color:#94a3b8;">
+            <div style="border:1px solid var(--border-2);border-radius:var(--radius);padding:0.875rem;margin-bottom:0.75rem;">
+
+                <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+                    <a href="/admin/users/view.php?id=<?= (int)$req['user_id'] ?>"
+                       style="font-weight:600;color:var(--text);">
                         <?= htmlspecialchars($req['username'], ENT_QUOTES, 'UTF-8') ?>
-                        (<?= htmlspecialchars($req['email'], ENT_QUOTES, 'UTF-8') ?>)
+                    </a>
+                    <span style="font-size:0.72rem;color:var(--text-3);"><?= htmlspecialchars($req['email'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <span class="col-ts" style="margin-left:auto;">
+                        <?= htmlspecialchars($req['created_at'], ENT_QUOTES, 'UTF-8') ?>
                     </span>
-                    <span class="muted" style="font-size:0.8rem;">submitted <?= htmlspecialchars($req['created_at'], ENT_QUOTES, 'UTF-8') ?></span>
                 </div>
-                <div style="margin-bottom:0.75rem;">
+
+                <div style="margin-bottom:0.625rem;display:flex;align-items:center;gap:0.5rem;">
                     <?php if ($req['old_callsign'] !== null): ?>
-                    <span class="callsign"><?= htmlspecialchars($req['old_callsign'], ENT_QUOTES, 'UTF-8') ?></span>
-                    <span class="muted" style="font-size:0.9rem;margin:0 0.5rem;">→</span>
+                    <span style="font-weight:700;"><?= htmlspecialchars($req['old_callsign'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <span style="color:var(--text-3);">&rarr;</span>
                     <?php endif; ?>
-                    <span class="callsign" style="color:#60a5fa;"><?= htmlspecialchars($req['requested_callsign'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <span style="font-weight:700;color:var(--accent-text);">
+                        <?= htmlspecialchars($req['requested_callsign'], ENT_QUOTES, 'UTF-8') ?>
+                    </span>
                 </div>
+
                 <?php if (!empty($req['explanation'])): ?>
-                <p class="muted" style="font-size:0.85rem;margin-bottom:0.75rem;">
+                <p style="font-size:0.78rem;color:var(--text-2);margin-bottom:0.625rem;">
                     <?= htmlspecialchars($req['explanation'], ENT_QUOTES, 'UTF-8') ?>
                 </p>
                 <?php endif; ?>
-                <form method="post" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-end;">
-                    <input type="hidden" name="request_id" value="<?= (int) $req['id'] ?>">
+
+                <form method="post" class="filter-bar">
+                    <input type="hidden" name="request_id" value="<?= (int)$req['id'] ?>">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
-                    <div class="form-group" style="flex:1 1 220px;margin-bottom:0;">
-                        <label style="font-size:0.85rem;">Notes (required for denial)</label>
-                        <input type="text" name="notes" maxlength="255"
-                               placeholder="Review notes"
-                               style="font-size:0.85rem;padding:0.3rem 0.5rem;background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:4px;width:100%;">
-                    </div>
-                    <button type="submit" name="action" value="approve" class="nav-link" style="min-height:44px;padding:0.3rem 0.75rem;font-size:0.85rem;">
-                        Approve
-                    </button>
-                    <button type="submit" name="action" value="deny" class="nav-link" style="min-height:44px;padding:0.3rem 0.75rem;font-size:0.85rem;background:#450a0a;color:#fca5a5;"
-                            onclick="return confirm('Deny this callsign request?')">
-                        Deny
-                    </button>
+                    <label>Notes</label>
+                    <input type="text" class="form-input" name="notes" maxlength="255"
+                           placeholder="Required for denial" style="flex:1;">
+                    <button type="submit" name="action" value="approve" class="btn btn-primary btn-sm">Approve</button>
+                    <button type="submit" name="action" value="deny" class="btn btn-danger btn-sm"
+                            onclick="return confirm('Deny this callsign request?')">Deny</button>
                 </form>
+
             </div>
             <?php endforeach; ?>
             <?php endif; ?>
-        </section>
+        </div>
+    </div>
+</div>
 
-    </main>
-</body>
-</html>
+<?php require_once $root . '/app/views/footer.php'; ?>

@@ -1,7 +1,9 @@
 <?php
 declare(strict_types=1);
 
-require_once dirname(__DIR__, 3) . '/app/auth/roles.php';
+$root = dirname(__DIR__, 3);
+require_once $root . '/app/auth/roles.php';
+require_once $root . '/app/profile/callsign.php';
 
 start_session();
 require_role('system_admin');
@@ -34,11 +36,13 @@ $stmt = $db->prepare(
 $stmt->execute([$per_page, $offset]);
 $users = $stmt->fetchAll();
 
+$pending_cs_count = count(get_pending_callsign_requests());
+
 $state_badge = [
     'active'           => 'badge-active',
-    'muted_on_network' => 'badge-muted',
-    'suspended'        => 'badge-suspended',
-    'banned'           => 'badge-banned',
+    'muted_on_network' => 'badge-gray',
+    'suspended'        => 'badge-amber',
+    'banned'           => 'badge-red',
 ];
 $state_label = [
     'active'           => 'Active',
@@ -49,112 +53,106 @@ $state_label = [
 $role_badge = [
     'system_admin' => 'badge-system-admin',
     'admin'        => 'badge-admin',
-    'moderator'    => 'badge-moderator',
-    'user'         => 'badge-user',
+    'moderator'    => 'badge-blue',
+    'user'         => 'badge-gray',
 ];
 
-$name = $_SESSION['display_name'] ?? 'Admin';
-
-require_once dirname(__DIR__, 3) . '/app/profile/callsign.php';
-$pending_cs_count = count(get_pending_callsign_requests());
+$page_title = 'User Management';
+$active_nav = 'admin-users';
+require_once $root . '/app/views/header.php';
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>User Management — CFLAG DMR</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/assets/css/app.css">
-</head>
-<body>
-    <main class="page" style="align-items: start; padding: 2rem;">
-        <section class="card" style="width: min(960px, 100%);">
-            <p class="eyebrow">CFLAG DMR</p>
-            <h1>User Management</h1>
 
-            <p style="display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.9rem; margin-bottom: 1rem;">
-                <a href="/admin/" class="nav-link">← Dashboard</a>
-                <a href="/logout.php" class="nav-link">Log out</a>
-            </p>
+<div class="layout-table-page">
 
-            <p style="display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.85rem; margin-bottom: 1.5rem;">
-                <a href="/admin/users/" class="nav-link<?= $filter_verified === null ? ' nav-link-active' : '' ?>">All users</a>
-                <a href="/admin/users/?verified=0" class="nav-link<?= $filter_verified === '0' ? ' nav-link-active' : '' ?>">Unverified only</a>
-                <a href="/admin/users/callsign-requests.php" class="nav-link">
-                    Callsign Requests
-                    <?php if ($pending_cs_count > 0): ?>
-                    <span class="badge badge-pending" style="margin-left:0.35rem;"><?= $pending_cs_count ?></span>
-                    <?php endif; ?>
-                </a>
-            </p>
+    <div class="panel-compact" style="flex-shrink:0;">
+        <div class="filter-bar">
+            <a href="/admin/users/"
+               class="btn btn-sm <?= $filter_verified === null ? 'btn-primary' : 'btn-secondary' ?>">
+               All Users
+            </a>
+            <a href="/admin/users/?verified=0"
+               class="btn btn-sm <?= $filter_verified === '0' ? 'btn-primary' : 'btn-secondary' ?>">
+               Unverified
+            </a>
+            <a href="/admin/users/callsign-requests.php" class="btn btn-sm btn-secondary">
+                Callsign Requests
+                <?php if ($pending_cs_count > 0): ?>
+                <span class="sidebar-link-badge amber"><?= $pending_cs_count ?></span>
+                <?php endif; ?>
+            </a>
+            <span style="margin-left:auto;font-size:0.72rem;color:var(--text-3);">
+                <?= $total ?> user<?= $total !== 1 ? 's' : '' ?>
+            </span>
+        </div>
+    </div>
 
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Username</th>
-                            <th>Display Name</th>
-                            <th>Roles</th>
-                            <th>Status</th>
-                            <th>Last Login</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (count($users) === 0): ?>
-                            <tr><td colspan="5" style="color:#94a3b8;">No users found.</td></tr>
-                        <?php else: ?>
-                            <?php foreach ($users as $u): ?>
-                                <tr>
-                                    <td>
-                                        <a href="/admin/users/view.php?id=<?= (int) $u['id'] ?>">
-                                            <?= htmlspecialchars($u['username'], ENT_QUOTES, 'UTF-8') ?>
-                                        </a>
-                                    </td>
-                                    <td><?= htmlspecialchars($u['display_name'], ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td>
-                                        <?php foreach (array_filter(explode(',', (string) $u['roles'])) as $role): ?>
-                                            <span class="badge <?= htmlspecialchars($role_badge[$role] ?? 'badge-user', ENT_QUOTES, 'UTF-8') ?>">
-                                                <?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?>
-                                            </span>
-                                        <?php endforeach; ?>
-                                    </td>
-                                    <td>
-                                        <?php $st = $u['moderation_state']; ?>
-                                        <span class="badge <?= htmlspecialchars($state_badge[$st] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-                                            <?= htmlspecialchars($state_label[$st] ?? $st, ENT_QUOTES, 'UTF-8') ?>
-                                        </span>
-                                        <?php if ($u['email_verified_at'] === null): ?>
-                                            <span class="badge badge-unverified">Unverified</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="muted">
-                                        <?= $u['last_login_at']
-                                            ? htmlspecialchars($u['last_login_at'], ENT_QUOTES, 'UTF-8')
-                                            : '—' ?>
-                                    </td>
-                                </tr>
+    <div class="panel" style="flex:1;min-height:0;">
+        <div class="panel-body pad-none">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Display Name</th>
+                        <th>Roles</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($users)): ?>
+                    <tr><td colspan="5" style="text-align:center;color:var(--text-3);">No users found.</td></tr>
+                    <?php else: ?>
+                    <?php foreach ($users as $u): ?>
+                    <tr>
+                        <td>
+                            <a href="/admin/users/view.php?id=<?= (int) $u['id'] ?>">
+                                <?= htmlspecialchars($u['username'], ENT_QUOTES, 'UTF-8') ?>
+                            </a>
+                        </td>
+                        <td><?= htmlspecialchars($u['display_name'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td>
+                            <?php foreach (array_filter(explode(',', (string) $u['roles'])) as $role): ?>
+                            <span class="badge <?= htmlspecialchars($role_badge[$role] ?? 'badge-gray', ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?>
+                            </span>
                             <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+                        </td>
+                        <td>
+                            <?php $st = $u['moderation_state']; ?>
+                            <span class="badge <?= htmlspecialchars($state_badge[$st] ?? 'badge-gray', ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars($state_label[$st] ?? $st, ENT_QUOTES, 'UTF-8') ?>
+                            </span>
+                            <?php if ($u['email_verified_at'] === null): ?>
+                            <span class="badge badge-unverified">Unverified</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="col-ts">
+                            <?= $u['last_login_at']
+                                ? htmlspecialchars($u['last_login_at'], ENT_QUOTES, 'UTF-8')
+                                : '—' ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php if ($pages > 1): ?>
+        <div class="panel-footer">
+            <div class="pagination">
+                <?php for ($p = 1; $p <= $pages; $p++): ?>
+                <?php $pqs = $filter_verified !== null ? '&verified=' . htmlspecialchars($filter_verified, ENT_QUOTES, 'UTF-8') : ''; ?>
+                <?php if ($p === $page): ?>
+                <span class="current"><?= $p ?></span>
+                <?php else: ?>
+                <a href="?page=<?= $p . $pqs ?>"><?= $p ?></a>
+                <?php endif; ?>
+                <?php endfor; ?>
             </div>
+        </div>
+        <?php endif; ?>
+    </div>
 
-            <?php if ($pages > 1): ?>
-                <div class="pagination">
-                    <?php for ($p = 1; $p <= $pages; $p++): ?>
-                        <?php if ($p === $page): ?>
-                            <span class="current"><?= $p ?></span>
-                        <?php else: ?>
-                            <a href="?page=<?= $p ?><?= $filter_verified !== null ? '&verified=' . htmlspecialchars($filter_verified, ENT_QUOTES, 'UTF-8') : '' ?>"><?= $p ?></a>
-                        <?php endif; ?>
-                    <?php endfor; ?>
-                </div>
-            <?php endif; ?>
+</div><!-- /.layout-table-page -->
 
-            <p class="muted" style="margin-top: 1rem; font-size: 0.85rem;">
-                <?= $total ?> user<?= $total !== 1 ? 's' : '' ?> total
-            </p>
-        </section>
-    </main>
-</body>
-</html>
+<?php require_once $root . '/app/views/footer.php'; ?>
