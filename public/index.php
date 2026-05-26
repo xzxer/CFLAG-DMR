@@ -27,6 +27,7 @@ $is_sysadmin = user_has_role($user_id, 'system_admin');
             <h1>Welcome, <?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?></h1>
             <p class="muted">You are connected to the CFLAG DMR network portal.</p>
             <p style="margin-top:2rem;display:flex;gap:1.5rem;flex-wrap:wrap;">
+                <a href="/user/profile.php" class="nav-link">My Profile</a>
                 <a href="/user/devices.php" class="nav-link">My Devices</a>
                 <a href="/user/talkgroups.php" class="nav-link">Talkgroups</a>
                 <a href="/talkgroups.php" class="nav-link">Network Talkgroups</a>
