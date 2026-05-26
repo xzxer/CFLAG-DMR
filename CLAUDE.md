@@ -1,14 +1,12 @@
 <!-- SPECKIT START -->
-Three features are in parallel development:
-- F7: Network Config & Peer Management — specs/009-network-config-gen/ (branch: 009-network-config-gen)
-- F10: Network Status Dashboard — specs/010-network-status-dashboard/ (branch: 010-network-status-dashboard)
-- F4: User Profiles — specs/011-user-profiles/ (branch: 011-user-profiles)
+No feature currently in active development on dev.
 
-Completed: P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), F3 (User Registration & Accounts), F5 (Hotspot & Repeater Registration), F6 (Talkgroup Management), F8 (HBLink Config Visibility), F9 (Last-Heard & Activity Log).
+Completed: P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), F3 (User Registration & Accounts), F4 (User Profiles), F5 (Hotspot & Repeater Registration), F6 (Talkgroup Management), F7 (Network Config & Peer Management), F8 (HBLink Config Visibility), F9 (Last-Heard & Activity Log), F10 (Network Status Dashboard).
 
-Key data contracts available for F7:
-- get_whitelist_eligible_dmr_ids() → app/devices/manager.php
-- get_device_subscriptions_for_config() → app/talkgroups/manager.php
+Key data contracts:
+- get_whitelist_eligible_dmr_ids() → app/devices/manager.php (F7 REG_ACL source)
+- get_device_subscriptions_for_config() → app/talkgroups/manager.php (F7 peer stanza source)
+- generate_hblink_config(int $actor_id) → app/config/generator.php
 <!-- SPECKIT END -->
 
 ## Current Architecture Direction
