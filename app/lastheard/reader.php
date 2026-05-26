@@ -110,6 +110,51 @@ function _tail_lines(string $path, int $lines): array
     return array_reverse($result);
 }
 
+function get_recently_active_dmr_ids(int $minutes = 30): array
+{
+    $result = load_lastheard(200);
+    if (!empty($result['error']) || empty($result['rows'])) {
+        return [];
+    }
+
+    $cutoff = time() - ($minutes * 60);
+    $seen   = [];
+
+    foreach ($result['rows'] as $row) {
+        $src_id = trim($row['src_id'] ?? '');
+        if ($src_id === '' || !ctype_digit($src_id)) continue;
+        if (strtotime($row['datetime']) < $cutoff) continue;
+        if (isset($seen[$src_id])) continue;
+        $seen[$src_id] = $row['datetime'];
+    }
+
+    if (empty($seen)) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($seen), '?'));
+    $stmt = get_db()->prepare(
+        "SELECT dmr_id, callsign FROM devices
+         WHERE dmr_id IN ({$placeholders}) AND status = 'approved'"
+    );
+    $stmt->execute(array_map('intval', array_keys($seen)));
+    $device_map = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $device_map[(string) $row['dmr_id']] = $row['callsign'];
+    }
+
+    $active = [];
+    foreach ($seen as $dmr_id => $last_seen) {
+        $active[] = [
+            'dmr_id'    => $dmr_id,
+            'callsign'  => $device_map[$dmr_id] ?? '',
+            'last_seen' => $last_seen,
+        ];
+    }
+
+    return $active;
+}
+
 function _matches_filters(array $entry, array $filters): bool
 {
     if (!empty($filters['callsign'])) {

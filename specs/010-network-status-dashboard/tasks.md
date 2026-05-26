@@ -7,7 +7,7 @@
 
 **Purpose**: No migrations needed. Add the helper function and create the page file.
 
-- [ ] T001 Add get_recently_active_dmr_ids(int $minutes = 30): array to app/lastheard/reader.php — parses lastheard log for recent src_id values, joins against devices table (status='approved') to return [['dmr_id', 'callsign', 'last_seen']] per data-model.md
+- [x] T001 Add get_recently_active_dmr_ids(int $minutes = 30): array to app/lastheard/reader.php — parses lastheard log for recent src_id values, joins against devices table (status='approved') to return [['dmr_id', 'callsign', 'last_seen']] per data-model.md
 
 ---
 
@@ -17,8 +17,8 @@
 
 **Independent Test**: navigate to /network-status.php as a regular user; confirm server state card and recently active devices list render without errors; confirm no IP addresses visible
 
-- [ ] T002 [US1] Create public/network-status.php — require_login(), load get_hblink_status(), get_recently_active_dmr_ids(30), and load_lastheard(10); render server state card (running/stopped, uptime); render recently active devices table (callsign, DMR ID, last seen); admin-only sections gated on user_has_role($user_id, 'system_admin')
-- [ ] T003 [US1] Add "Network Status" link to public/index.php (unified dashboard) for all authenticated users
+- [x] T002 [US1] Create public/network-status.php — require_login(), load get_hblink_status(), get_recently_active_dmr_ids(30), and load_lastheard(10); render server state card (running/stopped, uptime); render recently active devices table (callsign, DMR ID, last seen); admin-only sections gated on user_has_role($user_id, 'system_admin')
+- [x] T003 [US1] Add "Network Status" link to public/index.php (unified dashboard) for all authenticated users
 
 **Checkpoint**: US1 independently testable — page loads, server state shown, recently active devices shown, no admin-only data visible to regular users
 
@@ -30,8 +30,8 @@
 
 **Independent Test**: confirm activity feed section renders with up to 10 entries; confirm "No recent activity" shown when log is empty
 
-- [ ] T004 [US2] Add activity feed section to public/network-status.php — reuses $lh_result from load_lastheard(10) already loaded in T002; renders callsign, talkgroup name (falls back to TG {tgid}), and datetime; shows "No recent activity" when empty
-- [ ] T005 [US2] Add "View Full Log →" link to activity feed section pointing to /last-heard.php
+- [x] T004 [US2] Add activity feed section to public/network-status.php — reuses $lh_result from load_lastheard(10) already loaded in T002; renders callsign, talkgroup name (falls back to TG {tgid}), and datetime; shows "No recent activity" when empty
+- [x] T005 [US2] Add "View Full Log →" link to activity feed section pointing to /last-heard.php
 
 **Checkpoint**: US2 independently testable — activity feed renders correctly; talkgroup name shown where available
 
@@ -43,7 +43,7 @@
 
 **Independent Test**: log in as system_admin; confirm Server Controls section visible with admin links; trigger config drift condition and confirm warning banner appears
 
-- [ ] T006 [US3] Add admin-only Server Controls section to public/network-status.php (gated on $is_sysadmin): config drift warning banner (from get_hblink_status()['config_drifted']), process PID/uptime detail, links to /admin/hblink/config.php, /admin/hblink/rules.php, /admin/hblink/status.php, and /admin/config/ (F7 link, shown only if /admin/config/ exists)
+- [x] T006 [US3] Add admin-only Server Controls section to public/network-status.php (gated on $is_sysadmin): config drift warning banner (from get_hblink_status()['config_drifted']), process PID/uptime detail, links to /admin/hblink/config.php, /admin/hblink/rules.php, /admin/hblink/status.php, and /admin/config/ (F7 link, shown only if /admin/config/ exists)
 - [ ] T007 [US3] Verify admin-only sections are completely absent when viewed as non-admin (manual QA step documented in quickstart W.1)
 
 **Checkpoint**: US3 independently testable — admin sees control panel; non-admin does not
@@ -53,7 +53,7 @@
 ## Phase 5: Polish & Cross-Cutting Concerns
 
 - [ ] T008 [P] Verify mobile layout of all three sections (server state, recently active, activity feed) at 375px viewport
-- [ ] T009 [P] Add "← Dashboard" back-link to bottom of public/network-status.php
+- [x] T009 [P] Add "← Dashboard" back-link to bottom of public/network-status.php
 - [ ] T010 Run quickstart.md scenarios 1.1 through W.2 and verify all pass
 
 ---
