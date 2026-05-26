@@ -7,6 +7,7 @@ require_once $root . '/app/hblink/process.php';
 require_once $root . '/app/lastheard/reader.php';
 require_once $root . '/app/devices/manager.php';
 require_once $root . '/app/talkgroups/manager.php';
+require_once $root . '/app/config/generator.php';
 
 start_session();
 require_role('admin');
@@ -17,6 +18,7 @@ $hblink_status        = $is_sysadmin ? get_hblink_status()                    : 
 $lh_result            = $is_sysadmin ? load_lastheard(5)                      : null;
 $pending_device_count = $is_sysadmin ? count(get_pending_devices())           : 0;
 $pending_tg_count     = $is_sysadmin ? count(get_pending_talkgroup_requests()) : 0;
+$last_gen             = $is_sysadmin ? (get_generation_history(1)[0] ?? null)  : null;
 ?>
 <!doctype html>
 <html lang="en">
@@ -102,6 +104,39 @@ $pending_tg_count     = $is_sysadmin ? count(get_pending_talkgroup_requests()) :
             <?php endif; ?>
             <p style="margin-top: 0.75rem;">
                 <a href="/last-heard.php" class="nav-link">View Full Log &#8594;</a>
+            </p>
+        </section>
+        <?php endif; ?>
+
+        <?php if ($last_gen !== null): ?>
+        <section class="card" style="margin-top: 1.5rem;">
+            <p class="eyebrow">Network Config</p>
+            <h1 style="font-size: clamp(1.1rem, 2vw, 1.4rem); margin-bottom: 0.75rem;">HBLink Config Generation</h1>
+            <div class="field-row">
+                <span class="field-label">Last Generated</span>
+                <span class="field-value muted" style="font-size:0.9rem;"><?= htmlspecialchars($last_gen['generated_at'], ENT_QUOTES, 'UTF-8') ?></span>
+            </div>
+            <div class="field-row">
+                <span class="field-label">Result</span>
+                <span class="field-value">
+                    <?php if ($last_gen['changed']): ?>
+                    <span class="badge badge-pending">Changed</span>
+                    <?php else: ?>
+                    <span class="badge" style="background:#374151;color:#d1d5db;">No change</span>
+                    <?php endif; ?>
+                </span>
+            </div>
+            <p style="margin-top: 1rem;">
+                <a href="/admin/config/" class="nav-link">Manage Config &#8594;</a>
+            </p>
+        </section>
+        <?php elseif ($is_sysadmin): ?>
+        <section class="card" style="margin-top: 1.5rem;">
+            <p class="eyebrow">Network Config</p>
+            <h1 style="font-size: clamp(1.1rem, 2vw, 1.4rem); margin-bottom: 0.75rem;">HBLink Config Generation</h1>
+            <p class="muted" style="font-size:0.9rem;">No config has been generated yet.</p>
+            <p style="margin-top: 0.75rem;">
+                <a href="/admin/config/" class="nav-link">Generate Config &#8594;</a>
             </p>
         </section>
         <?php endif; ?>
