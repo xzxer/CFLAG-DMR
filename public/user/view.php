@@ -47,7 +47,7 @@ require_once $root . '/app/views/header.php';
                 <?= htmlspecialchars($display_callsign, ENT_QUOTES, 'UTF-8') ?>
             </span>
             <div class="panel-actions">
-                <a href="/users" class="btn btn-ghost btn-xs">← Directory</a>
+                <a href="/users.php" class="btn btn-ghost btn-xs">← Directory</a>
             </div>
         </div>
         <div class="panel-body">
