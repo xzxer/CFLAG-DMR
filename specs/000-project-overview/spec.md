@@ -94,11 +94,11 @@ Four access tiers, each building on the previous:
 | F2 | Role & Permission System | ✅ Complete | [spec](../003-role-permission-system/spec.md) |
 | F3 | User Registration & Accounts | ✅ Complete | [spec](../004-user-registration/spec.md) |
 | F4 | User Profiles | Not started | Depends on F3 |
-| F5 | Hotspot & Repeater Registration | Not started | Depends on F3, AD-2 |
-| F6 | Talkgroup Management | Not started | Depends on F2, AD-1 |
+| F5 | Hotspot & Repeater Registration | 🔄 In Progress | Depends on F3, AD-2; [spec](../007-hotspot-registration/spec.md) |
+| F6 | Talkgroup Management | 🔄 In Progress | Depends on F2, AD-1; [spec](../008-talkgroup-management/spec.md) |
 | F7 | Network Config & Peer Management | Not started | Depends on F2, AD-1 |
 | F8 | HBLink Config Visibility | ✅ Complete | Read-only viewer; [spec](../005-hblink-config-visibility/spec.md) |
-| F9 | Last-Heard & Activity Log | 🔄 In Progress | Public + authenticated views; [spec](../006-last-heard-activity-log/spec.md) |
+| F9 | Last-Heard & Activity Log | ✅ Complete | Public + authenticated views; [spec](../006-last-heard-activity-log/spec.md) |
 | F10 | Network Status Dashboard | Not started | Public-facing |
 | F11 | Moderation Tools | Not started | Depends on F2, F3 |
 | F12 | Node Management | Not started | Depends on F7, AD-1 |

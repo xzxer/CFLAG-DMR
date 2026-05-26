@@ -1,10 +1,9 @@
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
-at specs/006-last-heard-activity-log/plan.md
+Two features are in parallel development:
+- F5: Hotspot & Repeater Registration — specs/007-hotspot-registration/ (branch: 007-hotspot-registration)
+- F6: Talkgroup Management — specs/008-talkgroup-management/ (branch: 008-talkgroup-management)
 
-The current active phase is F9: Last-Heard & Activity Log (specs/006-last-heard-activity-log/).
-P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), F3 (User Registration & Accounts), and F8 (HBLink Config Visibility) are complete.
+Completed: P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), F3 (User Registration & Accounts), F8 (HBLink Config Visibility), F9 (Last-Heard & Activity Log).
 <!-- SPECKIT END -->
 
 ## Current Architecture Direction
