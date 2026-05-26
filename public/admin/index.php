@@ -5,14 +5,16 @@ $root = dirname(__DIR__, 2);
 require_once $root . '/app/auth/roles.php';
 require_once $root . '/app/hblink/process.php';
 require_once $root . '/app/lastheard/reader.php';
+require_once $root . '/app/devices/manager.php';
 
 start_session();
 require_role('admin');
 
-$name          = $_SESSION['display_name'] ?? $_SESSION['username'] ?? 'Admin';
-$is_sysadmin   = user_has_role((int) $_SESSION['user_id'], 'system_admin');
-$hblink_status = $is_sysadmin ? get_hblink_status()  : null;
-$lh_result     = $is_sysadmin ? load_lastheard(5)    : null;
+$name                 = $_SESSION['display_name'] ?? $_SESSION['username'] ?? 'Admin';
+$is_sysadmin          = user_has_role((int) $_SESSION['user_id'], 'system_admin');
+$hblink_status        = $is_sysadmin ? get_hblink_status()  : null;
+$lh_result            = $is_sysadmin ? load_lastheard(5)    : null;
+$pending_device_count = $is_sysadmin ? count(get_pending_devices()) : 0;
 ?>
 <!doctype html>
 <html lang="en">
@@ -35,6 +37,23 @@ $lh_result     = $is_sysadmin ? load_lastheard(5)    : null;
                 <a href="/logout.php" class="nav-link">Log out</a>
             </p>
         </section>
+
+        <?php if ($is_sysadmin): ?>
+        <section class="card" style="margin-top: 1.5rem;">
+            <p class="eyebrow">Devices</p>
+            <h1 style="font-size: clamp(1.1rem, 2vw, 1.4rem); margin-bottom: 0.75rem;">Pending Approvals</h1>
+            <?php if ($pending_device_count > 0): ?>
+            <p style="font-size:0.95rem;">
+                <span class="badge badge-pending"><?= $pending_device_count ?> pending</span>
+            </p>
+            <?php else: ?>
+            <p class="muted" style="font-size:0.9rem;">No pending device registrations.</p>
+            <?php endif; ?>
+            <p style="margin-top: 0.75rem;">
+                <a href="/admin/devices/" class="nav-link">Device Approvals &#8594;</a>
+            </p>
+        </section>
+        <?php endif; ?>
 
         <?php if ($lh_result !== null): ?>
         <section class="card" style="margin-top: 1.5rem;">
