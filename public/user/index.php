@@ -25,6 +25,7 @@ $name = $_SESSION['display_name'] ?? $_SESSION['username'] ?? 'User';
             <p class="muted">Welcome, <?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?></p>
             <p style="margin-top: 2rem; display: flex; gap: 1.5rem; flex-wrap: wrap;">
                 <a href="/user/devices.php" class="nav-link">My Devices</a>
+                <a href="/user/talkgroups.php" class="nav-link">Talkgroups</a>
                 <a href="/logout.php" class="nav-link">Log out</a>
             </p>
         </section>
