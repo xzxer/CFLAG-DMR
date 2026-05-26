@@ -8,7 +8,8 @@ require_once $root . '/app/users/directory.php';
 start_session();
 require_login();
 
-$is_admin = user_has_role('system_admin') || user_has_role('admin');
+$_uid     = (int) ($_SESSION['user_id'] ?? 0);
+$is_admin = user_has_role($_uid, 'system_admin') || user_has_role($_uid, 'admin');
 $q        = trim($_GET['q'] ?? '');
 $page     = max(1, (int) ($_GET['page'] ?? 1));
 $per_page = 50;

@@ -23,7 +23,7 @@ if (!$user || $user['moderation_state'] === 'banned') {
     exit;
 }
 
-$is_admin = user_has_role('system_admin') || user_has_role('admin');
+$is_admin = user_has_role($viewer_id, 'system_admin') || user_has_role($viewer_id, 'admin');
 
 $show_name = $is_admin || !empty($user['show_name_publicly']);
 
