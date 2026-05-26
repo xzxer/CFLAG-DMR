@@ -1,9 +1,14 @@
 <!-- SPECKIT START -->
-Two features are in parallel development:
-- F5: Hotspot & Repeater Registration — specs/007-hotspot-registration/ (branch: 007-hotspot-registration)
-- F6: Talkgroup Management — specs/008-talkgroup-management/ (branch: 008-talkgroup-management)
+Three features are in parallel development:
+- F7: Network Config & Peer Management — specs/009-network-config-gen/ (branch: 009-network-config-gen)
+- F10: Network Status Dashboard — specs/010-network-status-dashboard/ (branch: 010-network-status-dashboard)
+- F4: User Profiles — specs/011-user-profiles/ (branch: 011-user-profiles)
 
-Completed: P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), F3 (User Registration & Accounts), F8 (HBLink Config Visibility), F9 (Last-Heard & Activity Log).
+Completed: P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), F3 (User Registration & Accounts), F5 (Hotspot & Repeater Registration), F6 (Talkgroup Management), F8 (HBLink Config Visibility), F9 (Last-Heard & Activity Log).
+
+Key data contracts available for F7:
+- get_whitelist_eligible_dmr_ids() → app/devices/manager.php
+- get_device_subscriptions_for_config() → app/talkgroups/manager.php
 <!-- SPECKIT END -->
 
 ## Current Architecture Direction
