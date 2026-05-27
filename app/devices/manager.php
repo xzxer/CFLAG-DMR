@@ -46,7 +46,11 @@ function get_user_devices(int $user_id): array
 {
     $stmt = get_db()->prepare(
         'SELECT id, callsign, dmr_id, ssid_suffix, peer_id, device_passphrase,
-                device_type, hardware_desc, status, denied_reason, created_at, updated_at
+                tg_rewrite_enabled, tg_rewrite_prefix,
+                device_type, hardware_desc, status, denied_reason,
+                lat, lon, rx_freq, tx_freq, tx_power, height_m,
+                location_desc, station_desc, station_url, rptc_updated_at,
+                created_at, updated_at
          FROM devices WHERE user_id = ? ORDER BY created_at DESC'
     );
     $stmt->execute([$user_id]);
@@ -223,6 +227,90 @@ function update_device_hardware(int $device_id, int $user_id, string $hardware_d
     $stmt = get_db()->prepare('UPDATE devices SET hardware_desc = ? WHERE id = ? AND user_id = ?');
     $stmt->execute([$hardware_desc, $device_id, $user_id]);
     return $stmt->rowCount() > 0;
+}
+
+function update_device_details(int $device_id, int $user_id, string $callsign, string $hardware_desc): array
+{
+    $callsign = validate_callsign($callsign);
+    if ($callsign === false) {
+        return ['ok' => false, 'error' => 'Invalid callsign. Must be 3–16 alphanumeric characters.'];
+    }
+    $hardware_desc = substr(trim($hardware_desc), 0, 255);
+    $stmt = get_db()->prepare('UPDATE devices SET callsign = ?, hardware_desc = ? WHERE id = ? AND user_id = ?');
+    $stmt->execute([$callsign, $hardware_desc, $device_id, $user_id]);
+    return ['ok' => true, 'error' => null];
+}
+
+function update_device_features(int $device_id, int $user_id, bool $tg_rewrite_enabled, string $tg_rewrite_prefix): bool
+{
+    $prefix = substr(preg_replace('/[^0-9]/', '', $tg_rewrite_prefix), 0, 10) ?: null;
+    $stmt = get_db()->prepare('UPDATE devices SET tg_rewrite_enabled = ?, tg_rewrite_prefix = ? WHERE id = ? AND user_id = ?');
+    $stmt->execute([(int) $tg_rewrite_enabled, $prefix, $device_id, $user_id]);
+    return true;
+}
+
+function update_device_location(int $device_id, int $user_id, array $data): array
+{
+    $lat         = $data['lat']          !== '' ? (float)  $data['lat']          : null;
+    $lon         = $data['lon']          !== '' ? (float)  $data['lon']          : null;
+    $rx_freq     = $data['rx_freq']      !== '' ? (int)    $data['rx_freq']      : null;
+    $tx_freq     = $data['tx_freq']      !== '' ? (int)    $data['tx_freq']      : null;
+    $tx_power    = $data['tx_power']     !== '' ? (int)    $data['tx_power']     : null;
+    $height_m    = $data['height_m']     !== '' ? (int)    $data['height_m']     : null;
+    $loc_desc    = substr(trim($data['location_desc'] ?? ''), 0, 255) ?: null;
+    $sta_desc    = substr(trim($data['station_desc']  ?? ''), 0, 255) ?: null;
+    $sta_url     = substr(trim($data['station_url']   ?? ''), 0, 512) ?: null;
+
+    if ($lat !== null && ($lat < -90.0 || $lat > 90.0)) {
+        return ['ok' => false, 'error' => 'Latitude must be between -90 and 90.'];
+    }
+    if ($lon !== null && ($lon < -180.0 || $lon > 180.0)) {
+        return ['ok' => false, 'error' => 'Longitude must be between -180 and 180.'];
+    }
+
+    get_db()->prepare(
+        'UPDATE devices SET lat=?, lon=?, rx_freq=?, tx_freq=?, tx_power=?,
+                            height_m=?, location_desc=?, station_desc=?, station_url=?
+         WHERE id=? AND user_id=?'
+    )->execute([$lat, $lon, $rx_freq, $tx_freq, $tx_power,
+                $height_m, $loc_desc, $sta_desc, $sta_url,
+                $device_id, $user_id]);
+
+    return ['ok' => true, 'error' => null];
+}
+
+function update_device_ssid(int $device_id, int $user_id, int $ssid_suffix): array
+{
+    $db = get_db();
+
+    if ($ssid_suffix < 1 || $ssid_suffix > 99) {
+        return ['ok' => false, 'error' => 'SSID suffix must be between 01 and 99.'];
+    }
+
+    $stmt = $db->prepare('SELECT dmr_id, device_type FROM devices WHERE id = ? AND user_id = ?');
+    $stmt->execute([$device_id, $user_id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        return ['ok' => false, 'error' => 'Device not found.'];
+    }
+    if ($row['device_type'] !== 'hotspot') {
+        return ['ok' => false, 'error' => 'SSID suffix only applies to hotspots.'];
+    }
+
+    $new_peer_id = (int) $row['dmr_id'] * 100 + $ssid_suffix;
+
+    $check = $db->prepare("SELECT id FROM devices WHERE peer_id = ? AND status IN ('pending','approved') AND id != ?");
+    $check->execute([$new_peer_id, $device_id]);
+    if ($check->fetch()) {
+        $pad = str_pad((string) $ssid_suffix, 2, '0', STR_PAD_LEFT);
+        return ['ok' => false, 'error' => "Hotspot ID {$new_peer_id} (suffix {$pad}) is already in use."];
+    }
+
+    $db->prepare('UPDATE devices SET ssid_suffix = ?, peer_id = ? WHERE id = ?')
+       ->execute([$ssid_suffix, $new_peer_id, $device_id]);
+    $db->prepare('UPDATE routing_config_state SET version = version + 1 WHERE id = 1')->execute();
+
+    return ['ok' => true, 'error' => null, 'peer_id' => $new_peer_id];
 }
 
 function delete_device(int $device_id, int $user_id): bool

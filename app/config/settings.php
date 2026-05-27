@@ -21,6 +21,7 @@ function get_master_settings(): array|null
 function save_master_settings(int $actor_id, array $data): array
 {
     $bind_address   = trim($data['bind_address'] ?? '');
+    $public_address = trim($data['public_address'] ?? '');
     $port           = (int) ($data['port'] ?? 0);
     $passphrase     = $data['passphrase'] ?? '';
     $report_address = trim($data['report_address'] ?? '');
@@ -30,6 +31,9 @@ function save_master_settings(int $actor_id, array $data): array
 
     if ($bind_address === '') {
         return ['ok' => false, 'error' => 'Bind address is required.'];
+    }
+    if ($public_address === '') {
+        return ['ok' => false, 'error' => 'Public address is required.'];
     }
     if ($port < 1 || $port > 65535) {
         return ['ok' => false, 'error' => 'Port must be between 1 and 65535.'];
@@ -52,10 +56,11 @@ function save_master_settings(int $actor_id, array $data): array
 
     get_db()->prepare(
         'INSERT INTO master_server_settings
-             (id, bind_address, port, passphrase, report_address, report_port, ping_time, max_missed, updated_by_user_id)
-         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+             (id, bind_address, public_address, port, passphrase, report_address, report_port, ping_time, max_missed, updated_by_user_id)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
              bind_address       = VALUES(bind_address),
+             public_address     = VALUES(public_address),
              port               = VALUES(port),
              passphrase         = VALUES(passphrase),
              report_address     = VALUES(report_address),
@@ -64,7 +69,7 @@ function save_master_settings(int $actor_id, array $data): array
              max_missed         = VALUES(max_missed),
              updated_by_user_id = VALUES(updated_by_user_id)'
     )->execute([
-        $bind_address, $port, $passphrase,
+        $bind_address, $public_address, $port, $passphrase,
         $report_address, $report_port,
         $ping_time, $max_missed, $actor_id,
     ]);

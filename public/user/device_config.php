@@ -29,20 +29,15 @@ if ($device['status'] !== 'approved') {
     exit('Config is only available for approved devices.');
 }
 
-if ($device['device_type'] !== 'hotspot') {
-    http_response_code(400);
-    exit('Config download is only available for hotspots.');
-}
-
 $settings = get_master_settings();
 if (!$settings) {
     http_response_code(503);
     exit('Server configuration not yet available. Contact an admin.');
 }
 
-$server_host  = $settings['bind_address'] !== '0.0.0.0' ? $settings['bind_address'] : gethostname();
+$server_host  = $settings['public_address'] !== '' ? $settings['public_address'] : gethostname();
 $server_port  = (int) $settings['port'];
-$peer_id      = (int) $device['peer_id'];
+$peer_id      = (int) ($device['peer_id'] ?: $device['dmr_id']);
 $passphrase   = $device['device_passphrase'] ?? '';
 $callsign     = strtoupper(trim($device['callsign']));
 

@@ -64,6 +64,31 @@ function update_extended_profile(int $user_id, array $data): array
     return ['ok' => true, 'error' => null];
 }
 
+function update_dmr_id(int $user_id, string $raw): array
+{
+    $raw = trim($raw);
+    if ($raw === '') {
+        get_db()->prepare('UPDATE users SET dmr_id = NULL WHERE id = ?')->execute([$user_id]);
+        log_audit_action($user_id, 'dmr_id_cleared', 'user', $user_id, []);
+        return ['ok' => true, 'error' => null];
+    }
+    if (!ctype_digit($raw)) {
+        return ['ok' => false, 'error' => 'DMR ID must be a number.'];
+    }
+    $id = (int) $raw;
+    if ($id < 1000000 || $id > 9999999) {
+        return ['ok' => false, 'error' => 'DMR ID must be a 7-digit number (1000000–9999999).'];
+    }
+    $conflict = get_db()->prepare('SELECT id FROM users WHERE dmr_id = ? AND id != ?');
+    $conflict->execute([$id, $user_id]);
+    if ($conflict->fetch()) {
+        return ['ok' => false, 'error' => 'That DMR ID is already registered to another account.'];
+    }
+    get_db()->prepare('UPDATE users SET dmr_id = ? WHERE id = ?')->execute([$id, $user_id]);
+    log_audit_action($user_id, 'dmr_id_updated', 'user', $user_id, ['dmr_id' => $id]);
+    return ['ok' => true, 'error' => null];
+}
+
 function update_display_name(int $user_id, string $display_name): array
 {
     $display_name = trim($display_name);

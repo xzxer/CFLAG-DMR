@@ -27,6 +27,7 @@ $flash_error = $_SESSION['_flash_error'] ?? null; unset($_SESSION['_flash_error'
 $settings = get_master_settings();
 $v = $settings ?? [
     'bind_address'   => '0.0.0.0',
+    'public_address' => '',
     'port'           => 62031,
     'passphrase'     => 'passphrase',
     'report_address' => '127.0.0.1',
@@ -60,10 +61,18 @@ require_once $root . '/app/views/header.php';
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
 
                 <div class="form-group">
+                    <label for="public_address">Public Address</label>
+                    <input type="text" id="public_address" name="public_address" required maxlength="253"
+                           value="<?= htmlspecialchars((string)$v['public_address'], ENT_QUOTES, 'UTF-8') ?>"
+                           placeholder="e.g. dmr.cflag.net or 203.0.113.10">
+                    <p class="form-hint">Hostname or IP that hotspots and repeaters connect to. Used in generated device configs.</p>
+                </div>
+
+                <div class="form-group">
                     <label for="bind_address">Bind Address</label>
                     <input type="text" id="bind_address" name="bind_address" required maxlength="45"
                            value="<?= htmlspecialchars((string)$v['bind_address'], ENT_QUOTES, 'UTF-8') ?>">
-                    <p class="form-hint">IP the HBLink master listens on (e.g. 0.0.0.0)</p>
+                    <p class="form-hint">Local IP the HBLink master process binds to (e.g. 0.0.0.0)</p>
                 </div>
 
                 <div class="form-group">
