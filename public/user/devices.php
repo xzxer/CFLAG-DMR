@@ -171,19 +171,9 @@ require_once $root . '/app/views/header.php';
                     <span style="font-size:0.71rem;color:var(--red);"><?= htmlspecialchars($d['denied_reason'], ENT_QUOTES, 'UTF-8') ?></span>
                     <?php endif; ?>
                     <div style="margin-left:auto;display:flex;gap:0.375rem;">
-                        <?php if ($d['status'] === 'approved' && $d['device_passphrase']): ?>
-                        <button type="button" class="btn btn-ghost btn-xs"
-                                onclick="openConfigModal(
-                                    <?= htmlspecialchars(json_encode($d['callsign']),ENT_QUOTES,'UTF-8') ?>,
-                                    <?= (int)($d['peer_id'] ?: $d['dmr_id']) ?>,
-                                    <?= htmlspecialchars(json_encode($d['device_passphrase']),ENT_QUOTES,'UTF-8') ?>,
-                                    <?= $d['tg_rewrite_enabled'] ? 'true' : 'false' ?>,
-                                    <?= htmlspecialchars(json_encode($d['tg_rewrite_prefix']??''),ENT_QUOTES,'UTF-8') ?>
-                                )">Get Config</button>
-                        <?php endif; ?>
                         <button type="button" class="btn btn-secondary btn-xs"
                                 onclick="openEditModal(<?= htmlspecialchars(json_encode($d), ENT_QUOTES, 'UTF-8') ?>)">
-                            Edit
+                            Edit / Config
                         </button>
                     </div>
                 </div>
@@ -333,273 +323,271 @@ require_once $root . '/app/views/header.php';
 
 </div>
 
-<!-- ═══════════════════════════════════════════════════════ EDIT MODAL -->
+<!-- ═══════════════════════════════════════════════════════ EDIT + CONFIG MODAL -->
 <div id="edit-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:1rem;">
-<div style="background:var(--bg-surface);border:1px solid var(--border-2);border-radius:var(--radius);width:min(720px,96vw);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.5);">
+<div style="background:var(--bg-surface);border:1px solid var(--border-2);border-radius:var(--radius);width:min(1060px,96vw);height:min(800px,90vh);display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.5);">
 
     <!-- Modal header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1.125rem;border-bottom:1px solid var(--border-1);flex-shrink:0;">
-        <div>
-            <span id="em-title" style="font-weight:700;font-size:1rem;font-family:monospace;color:var(--accent-text);margin-right:0.5rem;"></span>
-            <span id="em-badge" style="font-size:0.72rem;color:var(--text-3);"></span>
+    <div style="display:flex;align-items:center;gap:1rem;padding:0.875rem 1.25rem;border-bottom:1px solid var(--border-1);flex-shrink:0;">
+        <div style="flex:1;min-width:0;display:flex;align-items:center;gap:0.625rem;flex-wrap:wrap;">
+            <span id="em-title" style="font-size:1.05rem;font-weight:800;font-family:monospace;color:var(--accent-text);"></span>
+            <span id="em-status-badge"></span>
+            <span id="em-badge" style="font-size:0.75rem;color:var(--text-3);"></span>
         </div>
-        <button type="button" onclick="closeEditModal()" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:1.3rem;line-height:1;padding:0 0.25rem;">&times;</button>
+        <!-- Connection ID — prominent -->
+        <div style="flex-shrink:0;padding:0 1rem;border-left:1px solid var(--border-1);text-align:right;">
+            <div style="font-size:0.6rem;color:var(--text-3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.15rem;">Connection ID</div>
+            <div id="em-peer-id-display" style="font-size:1.25rem;font-weight:800;font-family:monospace;color:var(--accent-text);line-height:1;"></div>
+        </div>
+        <button type="button" onclick="closeEditModal()" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:1.3rem;line-height:1;padding:0 0.25rem;flex-shrink:0;">&times;</button>
     </div>
 
-    <!-- Tabs -->
-    <div style="display:flex;border-bottom:1px solid var(--border-1);flex-shrink:0;padding:0 1.125rem;">
-        <button type="button" class="em-tab em-tab-active" onclick="switchTab('device')" id="tab-device"
-                style="padding:0.625rem 0.875rem;font-size:0.82rem;border:none;border-bottom:2px solid var(--accent);background:none;cursor:pointer;color:var(--text-1);margin-bottom:-1px;">
-            Device
-        </button>
-        <button type="button" class="em-tab" onclick="switchTab('features')" id="tab-features"
-                style="padding:0.625rem 0.875rem;font-size:0.82rem;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;color:var(--text-3);margin-bottom:-1px;">
-            Features
-        </button>
-        <button type="button" class="em-tab" onclick="switchTab('location')" id="tab-location"
-                style="padding:0.625rem 0.875rem;font-size:0.82rem;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;color:var(--text-3);margin-bottom:-1px;">
-            Location &amp; Station
-        </button>
-    </div>
+    <!-- Body: left (tabs) + right (live config) -->
+    <div style="display:flex;flex:1;min-height:0;overflow:hidden;">
 
-    <!-- Scrollable content -->
-    <div style="flex:1;overflow-y:auto;">
+        <!-- Left panel: tabs + content -->
+        <div style="display:flex;flex-direction:column;flex:1;min-width:0;overflow:hidden;">
 
-        <!-- ─── Tab: Device ─── -->
-        <div id="em-tab-device" style="padding:1.125rem;">
-            <form method="post" id="em-form-details">
-                <input type="hidden" name="action" value="edit_details">
-                <input type="hidden" name="device_id" id="em-device-id">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(),ENT_QUOTES,'UTF-8') ?>">
-
-                <div class="form-row" style="gap:0.75rem;margin-bottom:1rem;">
-                    <div class="form-group" style="margin:0;">
-                        <label style="font-size:0.75rem;">Callsign</label>
-                        <input type="text" name="callsign" id="em-callsign" maxlength="16" required
-                               style="width:130px;text-transform:uppercase;font-family:monospace;font-weight:700;">
-                    </div>
-                    <div class="form-group" style="margin:0;flex:1;">
-                        <label style="font-size:0.75rem;">Hardware</label>
-                        <input type="text" name="hardware_desc" id="em-hardware" maxlength="255"
-                               placeholder="e.g. OpenSPOT4 Pro">
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-primary btn-sm">Save Device Info</button>
-            </form>
-
-            <!-- SSID suffix (hotspot only) -->
-            <div id="em-ssid-section" style="display:none;margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border-1);">
-                <span class="form-section-label">SSID Suffix</span>
-                <form method="post" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem;">
-                    <input type="hidden" name="action" value="edit_ssid">
-                    <input type="hidden" name="device_id" id="em-ssid-device-id">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(),ENT_QUOTES,'UTF-8') ?>">
-                    <select name="ssid_suffix" id="em-ssid-select" style="width:75px;">
-                        <?php for ($s = 1; $s <= 99; $s++): ?>
-                        <option value="<?= $s ?>"><?= str_pad((string)$s,2,'0',STR_PAD_LEFT) ?></option>
-                        <?php endfor; ?>
-                    </select>
-                    <span style="font-size:0.78rem;color:var(--text-3);">
-                        Peer ID → <code id="em-peer-preview" style="color:var(--accent-text);"></code>
-                    </span>
-                    <button type="submit" class="btn btn-secondary btn-sm">Update Suffix</button>
-                    <p class="form-hint" style="width:100%;margin:0.25rem 0 0;">
-                        Changing the suffix changes your connection ID — update your hotspot's DMR ID to match.
-                    </p>
-                </form>
+            <!-- Tabs -->
+            <div style="display:flex;border-bottom:1px solid var(--border-1);flex-shrink:0;padding:0 1.125rem;">
+                <button type="button" onclick="switchTab('device')" id="tab-device"
+                        style="padding:0.625rem 0.875rem;font-size:0.82rem;border:none;border-bottom:2px solid var(--accent);background:none;cursor:pointer;color:var(--text-1);margin-bottom:-1px;">
+                    Device
+                </button>
+                <button type="button" onclick="switchTab('features')" id="tab-features"
+                        style="padding:0.625rem 0.875rem;font-size:0.82rem;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;color:var(--text-3);margin-bottom:-1px;">
+                    Features
+                </button>
+                <button type="button" onclick="switchTab('location')" id="tab-location"
+                        style="padding:0.625rem 0.875rem;font-size:0.82rem;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;color:var(--text-3);margin-bottom:-1px;">
+                    Location &amp; Station
+                </button>
             </div>
 
-            <!-- Delete -->
-            <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border-1);">
-                <form method="post" onsubmit="return confirm('Permanently remove this device?')">
-                    <input type="hidden" name="action" value="delete">
-                    <input type="hidden" name="device_id" id="em-delete-device-id">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(),ENT_QUOTES,'UTF-8') ?>">
-                    <button type="submit" class="btn btn-danger btn-sm">Remove Device</button>
-                </form>
-            </div>
-        </div>
+            <!-- Scrollable tab content -->
+            <div style="flex:1;overflow-y:auto;">
 
-        <!-- ─── Tab: Features ─── -->
-        <div id="em-tab-features" style="display:none;padding:1.125rem;">
-            <form method="post" id="em-form-features">
-                <input type="hidden" name="action" value="edit_features">
-                <input type="hidden" name="device_id" id="em-feat-device-id">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(),ENT_QUOTES,'UTF-8') ?>">
+                <!-- ─── Tab: Device ─── -->
+                <div id="em-tab-device" style="padding:1.25rem;">
+                    <form method="post" id="em-form-details">
+                        <input type="hidden" name="action" value="edit_details">
+                        <input type="hidden" name="device_id" id="em-device-id">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(),ENT_QUOTES,'UTF-8') ?>">
+                        <div class="form-group" style="margin-bottom:0.875rem;">
+                            <label>Callsign</label>
+                            <input type="text" name="callsign" id="em-callsign" maxlength="16" required
+                                   style="width:160px;text-transform:uppercase;font-family:monospace;font-weight:700;font-size:0.95rem;"
+                                   oninput="updateConfigOutput()">
+                        </div>
+                        <div class="form-group" style="margin-bottom:1rem;">
+                            <label>Hardware <span style="color:var(--text-3);font-weight:normal;">(optional)</span></label>
+                            <input type="text" name="hardware_desc" id="em-hardware" maxlength="255"
+                                   placeholder="e.g. OpenSPOT4 Pro">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">Save Device Info</button>
+                    </form>
 
-                <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
-                    <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;">
-                        <input type="checkbox" name="tg_rewrite_enabled" value="1" id="em-tgr-chk"
-                               onchange="onEmTgrToggle()" style="opacity:0;width:0;height:0;position:absolute;">
-                        <span id="em-tgr-track" style="position:absolute;inset:0;background:var(--border-2);border-radius:22px;cursor:pointer;transition:background .15s;">
-                            <span id="em-tgr-thumb" style="position:absolute;left:3px;top:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left .15s;"></span>
-                        </span>
-                    </label>
-                    <span style="font-size:0.88rem;font-weight:600;">TG Rewrite</span>
-                    <span style="font-size:0.75rem;color:var(--text-3);">Enables network-side talkgroup number translation</span>
-                </div>
-
-                <div id="em-prefix-section" style="display:none;">
-                    <p style="font-size:0.78rem;color:var(--text-3);margin:0 0 0.625rem;">
-                        Select the network prefix assigned to this hotspot. All rewrite rules are generated automatically.
-                    </p>
-                    <div id="em-prefix-btns" style="display:flex;gap:0.375rem;flex-wrap:wrap;margin-bottom:1rem;">
-                        <?php foreach ([1,2,3,4,5,7,8,9] as $pv): ?>
-                        <button type="button" data-p="<?= $pv ?>" onclick="selectEmPrefix(<?= $pv ?>)"
-                                style="width:38px;height:38px;font-size:0.9rem;font-weight:700;border:1px solid var(--border-2);border-radius:var(--radius);cursor:pointer;background:none;color:var(--text-2);">
-                            <?= $pv ?>
-                        </button>
-                        <?php endforeach; ?>
+                    <!-- Passphrase display -->
+                    <div id="em-passphrase-row" style="display:none;margin-top:1.25rem;padding:0.625rem 0.875rem;background:var(--bg-base);border:1px solid var(--border-1);border-radius:4px;">
+                        <span style="font-size:0.7rem;color:var(--text-3);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.06em;">Passphrase</span>
+                        <code id="em-passphrase-val" style="color:var(--accent-text);letter-spacing:0.07em;font-size:0.95rem;font-weight:700;"></code>
                     </div>
-                    <input type="hidden" name="tg_rewrite_prefix" id="em-prefix-val">
-                </div>
 
-                <button type="submit" class="btn btn-primary btn-sm">Save Features</button>
-            </form>
-        </div>
-
-        <!-- ─── Tab: Location & Station ─── -->
-        <div id="em-tab-location" style="display:none;padding:1.125rem;">
-            <form method="post" id="em-form-location">
-                <input type="hidden" name="action" value="edit_location">
-                <input type="hidden" name="device_id" id="em-loc-device-id">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(),ENT_QUOTES,'UTF-8') ?>">
-
-                <!-- RPTC status banner -->
-                <div id="em-rptc-banner" style="display:none;background:var(--bg-base);border:1px solid var(--border-1);border-radius:4px;padding:0.5rem 0.75rem;font-size:0.75rem;color:var(--text-3);margin-bottom:0.875rem;">
-                    <span style="color:var(--accent-text);">&#x25CF;</span>
-                    Live data last received from hotspot: <span id="em-rptc-ts" style="font-weight:600;"></span>
-                </div>
-
-                <!-- Map -->
-                <div id="em-map" style="height:280px;border-radius:var(--radius);overflow:hidden;margin-bottom:0.875rem;background:var(--bg-base);border:1px solid var(--border-1);"></div>
-
-                <!-- Address search -->
-                <div style="display:flex;gap:0.5rem;margin-bottom:0.875rem;">
-                    <input type="text" id="em-addr-search" placeholder="Search address or city…" style="flex:1;">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="geocodeAddress()">Search</button>
-                </div>
-
-                <!-- Lat / Lon -->
-                <div class="form-row" style="gap:0.75rem;margin-bottom:0.875rem;">
-                    <div class="form-group" style="margin:0;flex:1;">
-                        <label style="font-size:0.72rem;">Latitude</label>
-                        <input type="text" name="lat" id="em-lat" placeholder="e.g. 28.80055" style="font-family:monospace;">
+                    <!-- SSID suffix (hotspot only) -->
+                    <div id="em-ssid-section" style="display:none;margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border-1);">
+                        <span class="form-section-label">SSID Suffix</span>
+                        <form method="post" style="margin-top:0.625rem;">
+                            <input type="hidden" name="action" value="edit_ssid">
+                            <input type="hidden" name="device_id" id="em-ssid-device-id">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(),ENT_QUOTES,'UTF-8') ?>">
+                            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;">
+                                <select name="ssid_suffix" id="em-ssid-select" style="width:80px;font-size:0.95rem;">
+                                    <?php for ($s = 1; $s <= 99; $s++): ?>
+                                    <option value="<?= $s ?>"><?= str_pad((string)$s,2,'0',STR_PAD_LEFT) ?></option>
+                                    <?php endfor; ?>
+                                </select>
+                                <div>
+                                    <div style="font-size:0.68rem;color:var(--text-3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.1rem;">New Connection ID</div>
+                                    <code id="em-peer-preview" style="font-size:1rem;font-weight:700;color:var(--accent-text);font-family:monospace;"></code>
+                                </div>
+                                <button type="submit" class="btn btn-secondary btn-sm">Update Suffix</button>
+                            </div>
+                            <p class="form-hint">Changing the suffix changes your connection ID — update your hotspot to match.</p>
+                        </form>
                     </div>
-                    <div class="form-group" style="margin:0;flex:1;">
-                        <label style="font-size:0.72rem;">Longitude</label>
-                        <input type="text" name="lon" id="em-lon" placeholder="e.g. -81.27312" style="font-family:monospace;">
+
+                    <!-- Delete -->
+                    <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border-1);">
+                        <form method="post" onsubmit="return confirm('Permanently remove this device?')">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="device_id" id="em-delete-device-id">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(),ENT_QUOTES,'UTF-8') ?>">
+                            <button type="submit" class="btn btn-danger btn-sm">Remove Device</button>
+                        </form>
                     </div>
                 </div>
-                <p class="form-hint" style="margin-bottom:0.875rem;">Click the map to place a pin, or search an address. Coordinates are stored precisely.</p>
 
-                <div class="form-divider"></div>
+                <!-- ─── Tab: Features ─── -->
+                <div id="em-tab-features" style="display:none;padding:1.25rem;">
+                    <form method="post" id="em-form-features">
+                        <input type="hidden" name="action" value="edit_features">
+                        <input type="hidden" name="device_id" id="em-feat-device-id">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(),ENT_QUOTES,'UTF-8') ?>">
 
-                <!-- Station info -->
-                <span class="form-section-label">Station Info <span style="color:var(--text-3);font-weight:normal;">(auto-filled when hotspot connects)</span></span>
-                <div class="form-row" style="gap:0.75rem;margin:0.625rem 0;">
-                    <div class="form-group" style="margin:0;flex:1;">
-                        <label style="font-size:0.72rem;">RX Frequency (Hz)</label>
-                        <input type="text" name="rx_freq" id="em-rx-freq" placeholder="e.g. 145190000" style="font-family:monospace;">
-                    </div>
-                    <div class="form-group" style="margin:0;flex:1;">
-                        <label style="font-size:0.72rem;">TX Frequency (Hz)</label>
-                        <input type="text" name="tx_freq" id="em-tx-freq" placeholder="e.g. 145790000" style="font-family:monospace;">
-                    </div>
-                    <div class="form-group" style="margin:0;width:90px;">
-                        <label style="font-size:0.72rem;">Power (W)</label>
-                        <input type="number" name="tx_power" id="em-power" min="0" max="100" style="width:100%;">
-                    </div>
-                    <div class="form-group" style="margin:0;width:90px;">
-                        <label style="font-size:0.72rem;">Height (m)</label>
-                        <input type="number" name="height_m" id="em-height" min="0" style="width:100%;">
-                    </div>
+                        <div style="display:flex;align-items:center;gap:1rem;padding:0.875rem;background:var(--bg-base);border:1px solid var(--border-1);border-radius:var(--radius);margin-bottom:1.25rem;">
+                            <label style="position:relative;display:inline-block;width:46px;height:26px;flex-shrink:0;cursor:pointer;">
+                                <input type="checkbox" name="tg_rewrite_enabled" value="1" id="em-tgr-chk"
+                                       onchange="onEmTgrToggle()" style="opacity:0;width:0;height:0;position:absolute;">
+                                <span id="em-tgr-track" style="position:absolute;inset:0;background:var(--border-2);border-radius:26px;transition:background .15s;">
+                                    <span id="em-tgr-thumb" style="position:absolute;left:3px;top:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></span>
+                                </span>
+                            </label>
+                            <div>
+                                <div style="font-size:0.9rem;font-weight:600;margin-bottom:0.1rem;">TG Rewrite</div>
+                                <div style="font-size:0.75rem;color:var(--text-3);">Enables network-side talkgroup number translation</div>
+                            </div>
+                        </div>
+
+                        <div id="em-prefix-section" style="display:none;">
+                            <span class="form-section-label" style="display:block;margin-bottom:0.5rem;">Network Prefix</span>
+                            <p style="font-size:0.78rem;color:var(--text-3);margin:0 0 0.75rem;">
+                                Select the prefix for this hotspot — all 14 rewrite rules generate automatically in the config panel.
+                            </p>
+                            <div id="em-prefix-btns" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.25rem;">
+                                <?php foreach ([1,2,3,4,5,7,8,9] as $pv): ?>
+                                <button type="button" data-p="<?= $pv ?>" onclick="selectEmPrefix(<?= $pv ?>)"
+                                        style="width:46px;height:46px;font-size:1rem;font-weight:700;border:1px solid var(--border-2);border-radius:var(--radius);cursor:pointer;background:none;color:var(--text-2);">
+                                    <?= $pv ?>
+                                </button>
+                                <?php endforeach; ?>
+                            </div>
+                            <input type="hidden" name="tg_rewrite_prefix" id="em-prefix-val">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-sm">Save Features</button>
+                    </form>
                 </div>
-                <div class="form-group">
-                    <label style="font-size:0.72rem;">Location Description</label>
-                    <input type="text" name="location_desc" id="em-loc-desc" maxlength="255"
-                           placeholder="e.g. Chattanooga, TN">
-                </div>
-                <div class="form-group">
-                    <label style="font-size:0.72rem;">Station Description</label>
-                    <input type="text" name="station_desc" id="em-sta-desc" maxlength="255"
-                           placeholder="e.g. W4LMC Home Hotspot">
-                </div>
-                <div class="form-group">
-                    <label style="font-size:0.72rem;">URL</label>
-                    <input type="text" name="station_url" id="em-sta-url" maxlength="512"
-                           placeholder="e.g. https://www.qrz.com/db/W4LMC">
+
+                <!-- ─── Tab: Location & Station ─── -->
+                <div id="em-tab-location" style="display:none;padding:1.25rem;">
+                    <form method="post" id="em-form-location">
+                        <input type="hidden" name="action" value="edit_location">
+                        <input type="hidden" name="device_id" id="em-loc-device-id">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(),ENT_QUOTES,'UTF-8') ?>">
+
+                        <div id="em-rptc-banner" style="display:none;background:var(--bg-base);border:1px solid var(--border-1);border-radius:4px;padding:0.5rem 0.75rem;font-size:0.75rem;color:var(--text-3);margin-bottom:0.875rem;">
+                            <span style="color:var(--accent-text);">&#x25CF;</span>
+                            Live data last received: <span id="em-rptc-ts" style="font-weight:600;"></span>
+                        </div>
+
+                        <div id="em-map" style="height:260px;border-radius:var(--radius);overflow:hidden;margin-bottom:0.875rem;background:var(--bg-base);border:1px solid var(--border-1);"></div>
+
+                        <div style="display:flex;gap:0.5rem;margin-bottom:0.875rem;">
+                            <input type="text" id="em-addr-search" placeholder="Search address or city…" style="flex:1;">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="geocodeAddress()">Search</button>
+                        </div>
+
+                        <div class="form-row" style="gap:0.75rem;margin-bottom:0.5rem;">
+                            <div class="form-group" style="margin:0;flex:1;">
+                                <label>Latitude</label>
+                                <input type="text" name="lat" id="em-lat" placeholder="e.g. 28.80055" style="font-family:monospace;">
+                            </div>
+                            <div class="form-group" style="margin:0;flex:1;">
+                                <label>Longitude</label>
+                                <input type="text" name="lon" id="em-lon" placeholder="e.g. -81.27312" style="font-family:monospace;">
+                            </div>
+                        </div>
+                        <p class="form-hint" style="margin-bottom:0.875rem;">Click the map to place a pin, or search an address.</p>
+
+                        <div class="form-divider"></div>
+                        <span class="form-section-label" style="display:block;margin-bottom:0.625rem;">Station Info <span style="font-weight:normal;color:var(--text-3);">(auto-filled when hotspot connects)</span></span>
+
+                        <div class="form-row" style="gap:0.75rem;margin-bottom:0.75rem;">
+                            <div class="form-group" style="margin:0;flex:1;">
+                                <label>RX Frequency (Hz)</label>
+                                <input type="text" name="rx_freq" id="em-rx-freq" placeholder="e.g. 145190000" style="font-family:monospace;">
+                            </div>
+                            <div class="form-group" style="margin:0;flex:1;">
+                                <label>TX Frequency (Hz)</label>
+                                <input type="text" name="tx_freq" id="em-tx-freq" placeholder="e.g. 145790000" style="font-family:monospace;">
+                            </div>
+                        </div>
+                        <div class="form-row" style="gap:0.75rem;margin-bottom:0.75rem;">
+                            <div class="form-group" style="margin:0;width:120px;">
+                                <label>Power (W)</label>
+                                <input type="number" name="tx_power" id="em-power" min="0" max="100">
+                            </div>
+                            <div class="form-group" style="margin:0;width:120px;">
+                                <label>Height (m)</label>
+                                <input type="number" name="height_m" id="em-height" min="0">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Location Description</label>
+                            <input type="text" name="location_desc" id="em-loc-desc" maxlength="255" placeholder="e.g. Chattanooga, TN">
+                        </div>
+                        <div class="form-group">
+                            <label>Station Description</label>
+                            <input type="text" name="station_desc" id="em-sta-desc" maxlength="255" placeholder="e.g. W4LMC Home Hotspot">
+                        </div>
+                        <div class="form-group">
+                            <label>URL</label>
+                            <input type="text" name="station_url" id="em-sta-url" maxlength="512" placeholder="e.g. https://www.qrz.com/db/W4LMC">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-sm">Save Location</button>
+                    </form>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-sm">Save Location</button>
-            </form>
-        </div>
+            </div><!-- /.scroll -->
+        </div><!-- /.left -->
 
-    </div><!-- /.scroll -->
-</div>
-</div>
+        <!-- Right panel: live config -->
+        <div style="width:340px;flex-shrink:0;display:flex;flex-direction:column;border-left:1px solid var(--border-1);background:var(--bg-base);">
 
-<!-- ═══════════════════════════════════════════════════════ CONFIG MODAL -->
-<div id="config-modal" style="display:none;position:fixed;inset:0;z-index:1001;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;">
-    <div style="background:var(--bg-surface);border:1px solid var(--border-2);border-radius:var(--radius);width:min(580px,94vw);max-height:88vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;border-bottom:1px solid var(--border-1);">
-            <span style="font-weight:600;font-size:0.95rem;">DMR Network Config</span>
-            <button type="button" onclick="closeConfigModal()" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:1.2rem;line-height:1;padding:0 0.25rem;">&times;</button>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:1rem;padding:0.75rem 1rem;align-items:center;border-bottom:1px solid var(--border-1);">
-            <div style="display:flex;align-items:center;gap:0.5rem;">
-                <span style="font-size:0.75rem;color:var(--text-3);">Format</span>
+            <!-- Config panel header + format toggle -->
+            <div style="padding:0.625rem 0.875rem;border-bottom:1px solid var(--border-1);display:flex;align-items:center;gap:0.625rem;flex-shrink:0;">
+                <span style="font-size:0.78rem;font-weight:600;color:var(--text-2);flex:1;">Device Config</span>
                 <div style="display:flex;border:1px solid var(--border-2);border-radius:var(--radius);overflow:hidden;">
                     <button type="button" id="cfg-fmt-wpsd" onclick="setConfigFormat('wpsd')"
-                            style="padding:0.28rem 0.7rem;font-size:0.75rem;border:none;cursor:pointer;background:var(--accent);color:#fff;">WPSD</button>
+                            style="padding:0.22rem 0.6rem;font-size:0.72rem;font-weight:600;border:none;cursor:pointer;background:var(--accent);color:#fff;">WPSD</button>
                     <button type="button" id="cfg-fmt-pistar" onclick="setConfigFormat('pistar')"
-                            style="padding:0.28rem 0.7rem;font-size:0.75rem;border:none;cursor:pointer;background:none;color:var(--text-2);">Pi-Star / MMDVMHost</button>
+                            style="padding:0.22rem 0.6rem;font-size:0.72rem;border:none;cursor:pointer;background:none;color:var(--text-2);">Pi-Star</button>
                 </div>
             </div>
-            <div style="display:flex;align-items:center;gap:0.5rem;">
-                <span style="font-size:0.75rem;color:var(--text-3);">TG Rewrite</span>
-                <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;">
-                    <input type="checkbox" id="cfg-tgr-enabled" onchange="onCfgTgrToggle()" style="opacity:0;width:0;height:0;position:absolute;">
-                    <span id="cfg-tgr-track" style="position:absolute;inset:0;background:var(--border-2);border-radius:20px;cursor:pointer;transition:background .15s;">
-                        <span id="cfg-tgr-thumb" style="position:absolute;left:2px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left .15s;"></span>
-                    </span>
-                </label>
+
+            <!-- Config output -->
+            <div style="flex:1;overflow-y:auto;position:relative;padding:0.75rem;">
+                <button type="button" onclick="copyConfig()"
+                        style="position:absolute;top:1rem;right:1rem;z-index:1;background:var(--bg-surface);border:1px solid var(--border-2);border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;font-size:0.7rem;color:var(--text-2);display:flex;align-items:center;gap:0.25rem;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    <span id="cfg-copy-label">Copy</span>
+                </button>
+                <pre id="cfg-output" style="margin:0;padding:0.75rem 2.5rem 0.75rem 0.75rem;background:var(--bg-surface);border:1px solid var(--border-1);border-radius:4px;font-size:0.72rem;line-height:1.75;white-space:pre;color:var(--text-1);min-height:80px;overflow-x:auto;"></pre>
             </div>
-        </div>
-        <div id="cfg-prefix-row" style="display:none;padding:0.625rem 1rem;border-bottom:1px solid var(--border-1);background:var(--bg-base);">
-            <div style="display:flex;align-items:center;gap:0.625rem;flex-wrap:wrap;">
-                <span style="font-size:0.75rem;color:var(--text-3);">Prefix</span>
-                <div id="cfg-prefix-btns" style="display:flex;gap:0.25rem;">
-                    <?php foreach ([1,2,3,4,5,7,8,9] as $pv): ?>
-                    <button type="button" data-p="<?= $pv ?>" onclick="selectCfgPrefix(<?= $pv ?>)"
-                            style="width:28px;height:28px;font-size:0.82rem;font-weight:700;border:1px solid var(--border-2);border-radius:4px;cursor:pointer;background:none;color:var(--text-2);"><?= $pv ?></button>
-                    <?php endforeach; ?>
-                </div>
+
+            <!-- Footer hint -->
+            <div style="padding:0.5rem 0.875rem;border-top:1px solid var(--border-1);flex-shrink:0;">
+                <p style="font-size:0.67rem;color:var(--text-3);margin:0;line-height:1.5;">
+                    WPSD: Advanced &rsaquo; DMR Networks &rsaquo; Custom.<br>
+                    Pi-Star: Expert Editor &rsaquo; /etc/mmdvmhost &rsaquo; [DMR Network].
+                </p>
             </div>
-        </div>
-        <div style="position:relative;flex:1;min-height:0;margin:0.75rem 1rem;">
-            <button type="button" onclick="copyConfig()"
-                    style="position:absolute;top:0.5rem;right:0.5rem;z-index:1;background:var(--bg-base);border:1px solid var(--border-2);border-radius:4px;padding:0.25rem 0.5rem;cursor:pointer;font-size:0.72rem;color:var(--text-2);display:flex;align-items:center;gap:0.3rem;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <span id="cfg-copy-label">Copy</span>
-            </button>
-            <pre id="cfg-output" style="margin:0;padding:0.875rem 2.75rem 0.875rem 0.875rem;background:var(--bg-base);border:1px solid var(--border-1);border-radius:4px;font-size:0.78rem;line-height:1.7;overflow:auto;max-height:360px;white-space:pre;color:var(--text-1);"></pre>
-        </div>
-        <div style="padding:0 1rem 0.875rem;">
-            <p style="font-size:0.71rem;color:var(--text-3);margin:0;">
-                WPSD: paste into <em>Advanced &rsaquo; DMR Networks &rsaquo; Custom</em>.
-                Pi-Star: Expert Editor &rsaquo; /etc/mmdvmhost &rsaquo; [DMR Network].
-            </p>
-        </div>
-    </div>
+        </div><!-- /.right -->
+
+    </div><!-- /.body -->
+</div>
 </div>
 
 <script>
-var baseDmr = <?= (int)$user_base_dmr ?>;
-var _cfgCallsign='', _cfgPeerId=0, _cfgPass='', _cfgFmt='wpsd', _cfgPrefix=0;
-var _cfgHost = <?= json_encode($dmr_server_host) ?>;
-var _cfgPort = <?= (int)$dmr_server_port ?>;
+var baseDmr   = <?= (int)$user_base_dmr ?>;
+var _cfgHost  = <?= json_encode($dmr_server_host) ?>;
+var _cfgPort  = <?= (int)$dmr_server_port ?>;
 var _cfgNetName = 'CFLAG';
+
+// Edit modal state (drives live config panel)
+var _emPass = '', _emPeerId = 0, _emBaseDmr = 0, _emCfgFmt = 'wpsd';
+var _emMap = null, _emMarker = null;
 
 // ─── Register form ───────────────────────────────────────
 function setDeviceType(type) {
@@ -630,39 +618,50 @@ function updatePeerId() {
 }
 
 // ─── Edit modal ──────────────────────────────────────────
-var _emMap = null, _emMarker = null, _emBaseDmr = 0;
-
 function openEditModal(d) {
-    // Populate all fields from device object
-    document.getElementById('em-title').textContent = d.callsign;
-    document.getElementById('em-badge').textContent  = d.device_type + (d.ssid_suffix ? ' · suffix '+String(d.ssid_suffix).padStart(2,'0') : '');
+    var statusLabels = {approved:'<span class="badge badge-active">Approved</span>',pending:'<span class="badge badge-amber">Pending</span>',denied:'<span class="badge badge-red">Denied</span>'};
+    document.getElementById('em-title').textContent       = d.callsign;
+    document.getElementById('em-status-badge').innerHTML  = statusLabels[d.status] || '';
+    document.getElementById('em-badge').textContent       = d.device_type + (d.ssid_suffix ? ' · suffix '+String(d.ssid_suffix).padStart(2,'0') : '');
 
     ['em-device-id','em-ssid-device-id','em-feat-device-id',
      'em-loc-device-id','em-delete-device-id'].forEach(function(id){
         document.getElementById(id).value = d.id;
     });
 
-    document.getElementById('em-callsign').value  = d.callsign || '';
-    document.getElementById('em-hardware').value  = d.hardware_desc || '';
+    // Device tab
+    _emPass = d.device_passphrase || '';
+    document.getElementById('em-callsign').value = d.callsign || '';
+    document.getElementById('em-hardware').value = d.hardware_desc || '';
 
-    // SSID suffix (hotspot only)
-    var ssidSec = document.getElementById('em-ssid-section');
+    var passRow = document.getElementById('em-passphrase-row');
+    if (_emPass) {
+        passRow.style.display = 'block';
+        document.getElementById('em-passphrase-val').textContent = _emPass;
+    } else {
+        passRow.style.display = 'none';
+    }
+
+    // SSID / peer ID
     if (d.device_type === 'hotspot' && d.dmr_id) {
-        ssidSec.style.display = 'block';
+        document.getElementById('em-ssid-section').style.display = 'block';
         _emBaseDmr = parseInt(d.dmr_id, 10);
-        var sel = document.getElementById('em-ssid-select');
-        sel.value = parseInt(d.ssid_suffix||'1', 10);
+        document.getElementById('em-ssid-select').value = parseInt(d.ssid_suffix||'1', 10);
+        _emPeerId = _emBaseDmr * 100 + parseInt(d.ssid_suffix||'1', 10);
         updateEmPeerPreview();
     } else {
-        ssidSec.style.display = 'none';
+        document.getElementById('em-ssid-section').style.display = 'none';
+        _emBaseDmr = 0;
+        _emPeerId = parseInt(d.peer_id||d.dmr_id||'0', 10);
     }
+    document.getElementById('em-peer-id-display').textContent = _emPeerId > 0 ? _emPeerId.toString() : '—';
 
     // Features tab
     var tgrChk = document.getElementById('em-tgr-chk');
     tgrChk.checked = !!parseInt(d.tg_rewrite_enabled||'0', 10);
     syncEmTgrToggle();
-    var storedP = parseInt(d.tg_rewrite_prefix||'0', 10);
     document.getElementById('em-prefix-section').style.display = tgrChk.checked ? 'block' : 'none';
+    var storedP = parseInt(d.tg_rewrite_prefix||'0', 10);
     var validPs = [1,2,3,4,5,7,8,9];
     if (storedP > 0 && validPs.indexOf(storedP) >= 0) {
         selectEmPrefix(storedP, true);
@@ -674,16 +673,15 @@ function openEditModal(d) {
     }
 
     // Location tab
-    document.getElementById('em-lat').value      = d.lat   || '';
-    document.getElementById('em-lon').value      = d.lon   || '';
-    document.getElementById('em-rx-freq').value  = d.rx_freq  || '';
-    document.getElementById('em-tx-freq').value  = d.tx_freq  || '';
-    document.getElementById('em-power').value    = d.tx_power || '';
-    document.getElementById('em-height').value   = d.height_m || '';
-    document.getElementById('em-loc-desc').value = d.location_desc || '';
-    document.getElementById('em-sta-desc').value = d.station_desc  || '';
-    document.getElementById('em-sta-url').value  = d.station_url   || '';
-
+    document.getElementById('em-lat').value      = d.lat          || '';
+    document.getElementById('em-lon').value      = d.lon          || '';
+    document.getElementById('em-rx-freq').value  = d.rx_freq      || '';
+    document.getElementById('em-tx-freq').value  = d.tx_freq      || '';
+    document.getElementById('em-power').value    = d.tx_power     || '';
+    document.getElementById('em-height').value   = d.height_m     || '';
+    document.getElementById('em-loc-desc').value = d.location_desc|| '';
+    document.getElementById('em-sta-desc').value = d.station_desc || '';
+    document.getElementById('em-sta-url').value  = d.station_url  || '';
     var banner = document.getElementById('em-rptc-banner');
     if (d.rptc_updated_at) {
         banner.style.display = 'block';
@@ -692,6 +690,10 @@ function openEditModal(d) {
         banner.style.display = 'none';
     }
 
+    // Reset map so it reinitialises for new device coords
+    _emMap = null; _emMarker = null;
+
+    setConfigFormat('wpsd');
     switchTab('device');
     document.getElementById('edit-modal').style.display = 'flex';
     document.addEventListener('keydown', _emEscHandler);
@@ -708,7 +710,7 @@ document.getElementById('edit-modal').addEventListener('click', function(e){
 
 function switchTab(name) {
     ['device','features','location'].forEach(function(t) {
-        document.getElementById('em-tab-'+t).style.display     = t===name ? 'block' : 'none';
+        document.getElementById('em-tab-'+t).style.display = t===name ? 'block' : 'none';
         var btn = document.getElementById('tab-'+t);
         btn.style.borderBottomColor = t===name ? 'var(--accent)' : 'transparent';
         btn.style.color = t===name ? 'var(--text-1)' : 'var(--text-3)';
@@ -718,19 +720,23 @@ function switchTab(name) {
 
 function updateEmPeerPreview() {
     var s = parseInt(document.getElementById('em-ssid-select').value, 10);
-    document.getElementById('em-peer-preview').textContent = (_emBaseDmr * 100 + s).toString();
+    _emPeerId = _emBaseDmr * 100 + s;
+    document.getElementById('em-peer-preview').textContent = _emPeerId.toString();
+    document.getElementById('em-peer-id-display').textContent = _emPeerId.toString();
+    updateConfigOutput();
 }
 document.getElementById('em-ssid-select').addEventListener('change', updateEmPeerPreview);
 
 function syncEmTgrToggle() {
     var on = document.getElementById('em-tgr-chk').checked;
     document.getElementById('em-tgr-track').style.background = on ? 'var(--accent)' : 'var(--border-2)';
-    document.getElementById('em-tgr-thumb').style.left = on ? '21px' : '3px';
+    document.getElementById('em-tgr-thumb').style.left = on ? '23px' : '3px';
 }
 function onEmTgrToggle() {
     syncEmTgrToggle();
     document.getElementById('em-prefix-section').style.display =
         document.getElementById('em-tgr-chk').checked ? 'block' : 'none';
+    updateConfigOutput();
 }
 
 function selectEmPrefix(p, silent) {
@@ -741,6 +747,71 @@ function selectEmPrefix(p, silent) {
         b.style.color       = active ? '#fff' : 'var(--text-2)';
         b.style.borderColor = active ? 'var(--accent)' : 'var(--border-2)';
     });
+    if (!silent) updateConfigOutput();
+}
+
+// ─── Config panel (live, inside edit modal) ───────────────
+function setConfigFormat(fmt) {
+    _emCfgFmt = fmt;
+    var bw = document.getElementById('cfg-fmt-wpsd'), bp = document.getElementById('cfg-fmt-pistar');
+    bw.style.background = fmt==='wpsd' ? 'var(--accent)' : 'none';
+    bw.style.color      = fmt==='wpsd' ? '#fff' : 'var(--text-2)';
+    bp.style.background = fmt==='pistar' ? 'var(--accent)' : 'none';
+    bp.style.color      = fmt==='pistar' ? '#fff' : 'var(--text-2)';
+    updateConfigOutput();
+}
+function updateConfigOutput() {
+    var el = document.getElementById('cfg-output');
+    if (el) { el.textContent = buildConfig(_emCfgFmt); document.getElementById('cfg-copy-label').textContent = 'Copy'; }
+}
+function buildRewrites(p) {
+    var base=p*1000000, pcBase=p*10000+4000, typeV=base+9990;
+    return [
+        'TGRewrite0=2,11,2,9,1',
+        'TGRewrite1=1,'+(base+1)+',1,1,999999',
+        'TGRewrite2=2,'+(base+1)+',2,1,999999',
+        'TGRewrite3=1,100,1,100,1','TGRewrite4=2,100,2,100,1',
+        'TGRewrite5=1,9,1,9,1','TGRewrite6=2,9,2,9,1',
+        'PCRewrite0=2,'+pcBase+',2,4000,1001',
+        'PCRewrite1=1,'+(base+1)+',1,1,999999',
+        'PCRewrite2=2,'+(base+1)+',2,1,999999',
+        'TypeRewrite1=1,'+typeV+',1,9990',
+        'TypeRewrite2=2,'+typeV+',2,9990',
+        'SrcRewrite1=1,1,1,'+(base+1)+',999999',
+        'SrcRewrite2=2,1,2,'+(base+1)+',999999',
+    ].join('\n');
+}
+function buildConfig(fmt) {
+    if (!_emPass) return '# Device must be approved before\n# a config is available.';
+    var callsign = document.getElementById('em-callsign').value || '—';
+    var host = _cfgHost || '(set Public Address in Admin › Master Settings)';
+    var tgrOn = document.getElementById('em-tgr-chk').checked;
+    var prefix = parseInt(document.getElementById('em-prefix-val').value || '0', 10);
+    var rewrites = tgrOn && prefix > 0 ? '\n'+buildRewrites(prefix) : tgrOn ? '\n# Select a prefix above' : '';
+    if (fmt === 'wpsd') {
+        var lines = ['[DMR Network Custom]','Enabled=1','Location=0','Debug=0','Id='+_emPeerId];
+        if (tgrOn) lines.push('WPSD_AutoRewrites=1');
+        lines.push('Name='+_cfgNetName,'Address='+host,'Port='+_cfgPort,'Password="'+_emPass+'"');
+        if (rewrites) lines.push(rewrites.trim());
+        return lines.join('\n');
+    } else {
+        var out = '[General]\nCallsign='+callsign+'\nId='+_emPeerId
+                +'\n\n[DMR Network]\nEnable=1\nAddress='+host+'\nPort='+_cfgPort
+                +'\nLocal=0\nPassword='+_emPass+'\nOptions=\nDebug=0';
+        if (rewrites) out += '\n'+rewrites.trim();
+        return out;
+    }
+}
+function copyConfig() {
+    var text = document.getElementById('cfg-output').textContent;
+    var label = document.getElementById('cfg-copy-label');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function(){ label.textContent='Copied!'; setTimeout(function(){label.textContent='Copy';},2000); });
+    } else {
+        var ta = document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        label.textContent='Copied!'; setTimeout(function(){label.textContent='Copy';},2000);
+    }
 }
 
 // Leaflet map
@@ -798,119 +869,8 @@ function geocodeAddress() {
         .catch(function() { alert('Geocoding failed — check your connection.'); });
 }
 
-// ─── Config modal ─────────────────────────────────────────
-function openConfigModal(callsign, peerId, passphrase, tgrEnabled, tgrPrefix) {
-    _cfgCallsign=callsign; _cfgPeerId=peerId; _cfgPass=passphrase; _cfgFmt='wpsd'; _cfgPrefix=0;
-    var chk = document.getElementById('cfg-tgr-enabled');
-    chk.checked = !!tgrEnabled;
-    syncCfgTgrToggle();
-    document.getElementById('cfg-prefix-row').style.display = tgrEnabled ? 'block' : 'none';
-    var validPs=[1,2,3,4,5,7,8,9], stored=parseInt(tgrPrefix,10);
-    if (!isNaN(stored) && validPs.indexOf(stored)>=0) selectCfgPrefix(stored, true);
-    else document.querySelectorAll('#cfg-prefix-btns button').forEach(function(b){
-        b.style.background='none'; b.style.color='var(--text-2)'; b.style.borderColor='var(--border-2)';
-    });
-    setConfigFormat('wpsd');
-    document.getElementById('config-modal').style.display='flex';
-    document.addEventListener('keydown', _cfgEscHandler);
-}
-function closeConfigModal() {
-    document.getElementById('config-modal').style.display='none';
-    document.removeEventListener('keydown', _cfgEscHandler);
-}
-function _cfgEscHandler(e) { if (e.key==='Escape') closeConfigModal(); }
-document.getElementById('config-modal').addEventListener('click', function(e){ if(e.target===this) closeConfigModal(); });
 
-function syncCfgTgrToggle() {
-    var on = document.getElementById('cfg-tgr-enabled').checked;
-    document.getElementById('cfg-tgr-track').style.background = on ? 'var(--accent)' : 'var(--border-2)';
-    document.getElementById('cfg-tgr-thumb').style.left = on ? '18px' : '2px';
-}
-function onCfgTgrToggle() {
-    syncCfgTgrToggle();
-    document.getElementById('cfg-prefix-row').style.display =
-        document.getElementById('cfg-tgr-enabled').checked ? 'block' : 'none';
-    updateConfigOutput();
-}
 
-function selectCfgPrefix(p, silent) {
-    _cfgPrefix=p;
-    document.querySelectorAll('#cfg-prefix-btns button').forEach(function(b){
-        var a=parseInt(b.getAttribute('data-p'),10)===p;
-        b.style.background=a?'var(--accent)':'none';
-        b.style.color=a?'#fff':'var(--text-2)';
-        b.style.borderColor=a?'var(--accent)':'var(--border-2)';
-    });
-    if (!silent) updateConfigOutput();
-}
-
-function setConfigFormat(fmt) {
-    _cfgFmt=fmt;
-    var bw=document.getElementById('cfg-fmt-wpsd'), bp=document.getElementById('cfg-fmt-pistar');
-    if (fmt==='wpsd'){ bw.style.background='var(--accent)'; bw.style.color='#fff'; bp.style.background='none'; bp.style.color='var(--text-2)'; }
-    else { bp.style.background='var(--accent)'; bp.style.color='#fff'; bw.style.background='none'; bw.style.color='var(--text-2)'; }
-    updateConfigOutput();
-}
-function updateConfigOutput() {
-    document.getElementById('cfg-output').textContent = buildConfig(_cfgFmt);
-    document.getElementById('cfg-copy-label').textContent = 'Copy';
-}
-
-function buildRewrites(p) {
-    var base=p*1000000, pcBase=p*10000+4000, typeV=base+9990;
-    return [
-        'TGRewrite0=2,11,2,9,1',
-        'TGRewrite1=1,'+(base+1)+',1,1,999999',
-        'TGRewrite2=2,'+(base+1)+',2,1,999999',
-        'TGRewrite3=1,100,1,100,1','TGRewrite4=2,100,2,100,1',
-        'TGRewrite5=1,9,1,9,1','TGRewrite6=2,9,2,9,1',
-        'PCRewrite0=2,'+pcBase+',2,4000,1001',
-        'PCRewrite1=1,'+(base+1)+',1,1,999999',
-        'PCRewrite2=2,'+(base+1)+',2,1,999999',
-        'TypeRewrite1=1,'+typeV+',1,9990',
-        'TypeRewrite2=2,'+typeV+',2,9990',
-        'SrcRewrite1=1,1,1,'+(base+1)+',999999',
-        'SrcRewrite2=2,1,2,'+(base+1)+',999999',
-    ].join('\n');
-}
-
-function buildConfig(fmt) {
-    var host=_cfgHost||'(set Public Address in Admin > Master Settings)';
-    var tgrOn=document.getElementById('cfg-tgr-enabled').checked;
-    var rewrites = tgrOn && _cfgPrefix>0 ? '\n'+buildRewrites(_cfgPrefix)
-                 : tgrOn ? '\n# Select a prefix above'
-                 : '';
-    if (fmt==='wpsd') {
-        var lines=['[DMR Network Custom]','Enabled=1','Location=0','Debug=0',
-            'Id='+_cfgPeerId];
-        if (tgrOn) lines.push('WPSD_AutoRewrites=1');
-        lines.push('Name='+_cfgNetName,'Address='+host,'Port='+_cfgPort,'Password="'+_cfgPass+'"');
-        if (rewrites) lines.push(rewrites.trim());
-        return lines.join('\n');
-    } else {
-        var out='[General]\nCallsign='+_cfgCallsign+'\nId='+_cfgPeerId
-               +'\n\n[DMR Network]\nEnable=1\nAddress='+host+'\nPort='+_cfgPort
-               +'\nLocal=0\nPassword='+_cfgPass+'\nOptions=\nDebug=0';
-        if (rewrites) out += '\n'+rewrites.trim();
-        return out;
-    }
-}
-
-function copyConfig() {
-    var text=document.getElementById('cfg-output').textContent;
-    var label=document.getElementById('cfg-copy-label');
-    if (navigator.clipboard&&navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function(){
-            label.textContent='Copied!'; setTimeout(function(){label.textContent='Copy';},2000);
-        });
-    } else {
-        var ta=document.createElement('textarea'); ta.value=text;
-        ta.style.position='fixed'; ta.style.opacity='0';
-        document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-        document.body.removeChild(ta);
-        label.textContent='Copied!'; setTimeout(function(){label.textContent='Copy';},2000);
-    }
-}
 
 // Auto-open edit modal if redirected back with ?edit= param
 <?php if ($auto_edit > 0): ?>
