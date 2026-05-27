@@ -39,36 +39,48 @@ The Last-Heard page currently shows raw DMR IDs with no callsign or name informa
 - Given a local override exists for a DMR ID, it takes precedence over the imported RadioID.net data in all lookups
 - Given I delete an override, the system falls back to the RadioID.net data
 
+### US4 — Automatic update check (P2)
+**As an admin**, I want the system to automatically detect when RadioID.net has published a new database and import it, so I don't have to remember to manually trigger imports.
+
+**Acceptance criteria:**
+- Given the system has a configured minimum import interval (default 24 hours), it will not re-import more frequently than that interval even if triggered multiple times
+- Given a Linux cron job runs the import script at a scheduled time, the script checks whether the RadioID.net file has changed since the last import using HTTP conditional GET (If-Modified-Since), and only imports if there is new data
+- Given the remote file has not changed, the script exits without importing and logs "no update available"
+- Given the remote file has changed, the script imports and logs the count of records updated
+- Given the import fails, the existing data is preserved and the error is logged; the next scheduled run will retry
+
 ---
 
 ## Functional Requirements
 
 1. `subscriber_ids` table: radio_id (PK), callsign, name, city, state, country, source ENUM('radioid','local'), last_updated_at
-2. Import source: RadioID.net user CSV (publicly available, no API key required)
-3. Import is initiated manually by an admin; no automatic scheduled import in MVP
-4. Import runs synchronously for MVP (no background job); show a progress indicator while running
-5. Upsert on import: INSERT … ON DUPLICATE KEY UPDATE for all non-primary-key fields
-6. Local overrides (source='local') are never overwritten by an import
+2. Import source: `https://radioid.net/static/user.csv` — publicly accessible, no API key, Last-Modified header present (updated daily ~05:00 UTC)
+3. Import uses HTTP conditional GET: store the `Last-Modified` value from each successful download; on subsequent requests, send `If-Modified-Since` to skip the download if unchanged (304 Not Modified)
+4. Minimum re-import interval enforced in code (default 24h, configurable via system_settings); prevents hammering RadioID.net even if triggered repeatedly
+5. Import runs synchronously for in-portal use; an identical CLI-compatible function is also callable from a cron script
+6. Upsert on import: INSERT … ON DUPLICATE KEY UPDATE for all non-PK fields, except source='local' rows which are never overwritten
 7. Lookup function: `get_subscriber(int $dmr_id): array|null` — returns record or null
-8. Last-heard page updated to call `get_subscriber()` for each DMR ID in the result set
-9. Admin page at `/admin/subscribers/` showing: record count, last import time, import button, override management table
+8. Last-heard page updated to use batch lookup `get_subscribers_for_ids()` for all DMR IDs in the result set
+9. Admin page at `/admin/subscribers/` showing: record count, last import time, last-modified timestamp from RadioID.net, import button, update check button, override management table
+10. A standalone CLI script at `scripts/import_subscribers.php` safe to invoke from a system cron job; exits 0 on success/no-change, exits 1 on failure
 
 ---
 
 ## Out of Scope
 
-- Automatic scheduled imports (cron — add in a later polish pass)
-- Searching/browsing the full subscriber database (admin sees count + overrides only for MVP)
+- Searching/browsing the full subscriber database (admin sees count + overrides only)
 - Public-facing callsign lookup page
 - Integration with other external callsign databases (QRZ, etc.)
+- Per-ID lookup against the RadioID.net JSON API at registration time (deferred — bulk CSV is sufficient for MVP)
 
 ---
 
 ## Assumptions
 
-- RadioID.net user CSV URL is stable and publicly accessible without authentication
-- Import volume is approximately 250,000–500,000 records; PHP's execution time limit must be extended for the import operation (set_time_limit)
-- The import runs in a single PHP request for MVP; a background job can be added later if needed
+- `https://radioid.net/static/user.csv` (singular "user") is the correct current URL; the former `users.csv` path is 404
+- The file is approximately 15.9 MB uncompressed, ~306,000 records; PHP execution time limit must be extended for the import
+- The server returns a `Last-Modified` header enabling conditional GET; if it stops doing so, the fallback is time-based interval checking only
+- The import script sends a descriptive `User-Agent` header per RadioID.net API policy
 
 ---
 

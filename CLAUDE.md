@@ -1,19 +1,21 @@
 <!-- SPECKIT START -->
-Active planning branch: `016-operational-features`
+Active branch: `016-operational-features`
 
-Planning complete (specs/015–018, not yet implemented):
-- F13 Controlled Restart → specs/015-controlled-restart/plan.md
-- F14 Subscriber ID Import → specs/016-subscriber-id-import/plan.md
+F13 Controlled Restart — IMPLEMENTED (migration 020 applied, apply_hblink_config() live)
+Planning complete, not yet implemented:
+- F14 Subscriber ID Import → specs/016-subscriber-id-import/plan.md (updated: conditional GET, cron script, correct CSV URL)
 - F15 Moderation Tools → specs/017-moderation-tools/plan.md
-- F16 Backup & Rollback → specs/018-backup-rollback/plan.md
+- F16 Backup & Rollback → specs/018-backup-rollback/plan.md (depends on F13 ✅)
 
-Completed: P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), F3 (User Registration & Accounts), F4 (User Profiles), F5 (Hotspot & Repeater Registration), F6 (Talkgroup Management), F7 (Network Config & Peer Management), F8 (HBLink Config Visibility), F9 (Last-Heard & Activity Log), F10 (Network Status Dashboard), F11 (Extended User Profiles), F12 (Public User Directory).
+Completed: P0 (HBLink + HBMonv2 setup), F1 (Admin login), F2 (Role & Permission System), F3 (User Registration & Accounts), F4 (User Profiles), F5 (Hotspot & Repeater Registration), F6 (Talkgroup Management), F7 (Network Config & Peer Management), F8 (HBLink Config Visibility), F9 (Last-Heard & Activity Log), F10 (Network Status Dashboard), F11 (Extended User Profiles), F12 (Public User Directory), F13 (Controlled Restart).
 
 Key data contracts:
 - get_whitelist_eligible_dmr_ids() → app/devices/manager.php (F7 REG_ACL source)
 - get_device_subscriptions_for_config() → app/talkgroups/manager.php (F7 peer stanza source)
 - generate_hblink_config(int $actor_id) → app/config/generator.php
-- apply_hblink_config(int $actor_id) → app/config/generator.php (F13, planned)
+- apply_hblink_config(int $actor_id) → app/config/generator.php (F13 ✅)
+- apply_hblink_config_text(string $config_text, int $actor_id, ?int $rolled_back_from_id) → app/config/generator.php (F16, planned)
+- import_subscribers_from_radioid(bool $force) → app/subscribers/manager.php (F14, planned)
 <!-- SPECKIT END -->
 
 ## Current Architecture Direction
