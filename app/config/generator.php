@@ -111,16 +111,33 @@ function _compute_diff(string $old_text, string $new_text): string
     return implode("\n", $diff_parts);
 }
 
-function get_generation_history(int $limit = 50): array
+// --- F13: Controlled Restart constants (hardcoded, not DB-configurable) ---
+const HBLINK_COMPOSE_FILE = '/etc/hblink3/docker-compose.yml';
+const HBLINK_CONTAINER    = 'hblink';
+const HBLINK_BACKUP_DIR   = '/etc/hblink3/backups/';
+const HBLINK_BACKUP_KEEP  = 10;
+
+function get_hblink_status(): string
+{
+    $output = shell_exec('sudo /usr/bin/docker inspect --format=\'{{.State.Status}}\' ' . HBLINK_CONTAINER . ' 2>/dev/null');
+    if ($output === null) return 'unknown';
+    $status = trim($output);
+    return in_array($status, ['running', 'stopped', 'exited', 'restarting', 'paused', 'dead'], true)
+        ? $status
+        : 'unknown';
+}
+
+function get_generation_history(int $limit = 50, int $offset = 0): array
 {
     $stmt = get_db()->prepare(
         'SELECT id, generated_at, generated_by_user_id, changed,
+                applied, applied_at, apply_success, apply_error,
                 (SELECT username FROM users WHERE id = h.generated_by_user_id) AS actor_username
          FROM config_generation_history h
          ORDER BY generated_at DESC
-         LIMIT ?'
+         LIMIT ? OFFSET ?'
     );
-    $stmt->execute([$limit]);
+    $stmt->execute([$limit, $offset]);
     return $stmt->fetchAll();
 }
 
@@ -128,6 +145,7 @@ function get_generation_detail(int $history_id): array|null
 {
     $stmt = get_db()->prepare(
         'SELECT id, generated_at, generated_by_user_id, config_text, changed, diff_text,
+                applied, applied_at, apply_success, apply_error, backup_path,
                 (SELECT username FROM users WHERE id = h.generated_by_user_id) AS actor_username
          FROM config_generation_history h
          WHERE id = ?'
@@ -201,4 +219,91 @@ function generate_hblink_config(int $actor_id): array
     ]);
 
     return ['ok' => true, 'changed' => $changed, 'error' => null];
+}
+
+function _rotate_backups(): void
+{
+    $files = glob(HBLINK_BACKUP_DIR . 'hblink-*.cfg');
+    if ($files === false || count($files) < HBLINK_BACKUP_KEEP) return;
+    sort($files);
+    $excess = count($files) - (HBLINK_BACKUP_KEEP - 1);
+    foreach (array_slice($files, 0, $excess) as $old) {
+        @unlink($old);
+    }
+}
+
+function apply_hblink_config(int $actor_id): array
+{
+    $config_path = _get_config_output_path();
+    if ($config_path === false) {
+        return ['ok' => false, 'error' => 'HBLINK_CONFIG_PATH is not configured or not in an allowed directory.', 'generation_id' => null];
+    }
+
+    // Step 1: back up current live config before overwriting
+    $backup_path = null;
+    if (is_readable($config_path)) {
+        $backup_path = HBLINK_BACKUP_DIR . 'hblink-' . date('Ymd-His') . '.cfg';
+        if (!is_dir(HBLINK_BACKUP_DIR)) {
+            @mkdir(HBLINK_BACKUP_DIR, 0750, true);
+        }
+        if (@copy($config_path, $backup_path) === false) {
+            return ['ok' => false, 'error' => 'Failed to create config backup at ' . $backup_path . '. Check permissions.', 'generation_id' => null];
+        }
+        _rotate_backups();
+    }
+
+    // Step 2: generate config (writes file, creates history record)
+    $gen = generate_hblink_config($actor_id);
+    if (!$gen['ok']) {
+        return ['ok' => false, 'error' => $gen['error'] ?? 'Config generation failed.', 'generation_id' => null];
+    }
+
+    // Step 3: get the just-created generation record
+    $stmt = get_db()->prepare(
+        'SELECT id FROM config_generation_history ORDER BY generated_at DESC LIMIT 1'
+    );
+    $stmt->execute();
+    $gen_id = (int) ($stmt->fetchColumn() ?: 0);
+
+    if ($gen_id === 0) {
+        return ['ok' => false, 'error' => 'Could not locate generation record after write.', 'generation_id' => null];
+    }
+
+    // Mark as applied and record backup path
+    get_db()->prepare(
+        'UPDATE config_generation_history SET applied=1, applied_at=NOW(), backup_path=? WHERE id=?'
+    )->execute([$backup_path, $gen_id]);
+
+    // Step 4: restart HBLink container
+    $restart_output = shell_exec('sudo /usr/bin/docker restart ' . HBLINK_CONTAINER . ' 2>&1');
+
+    // Step 5: poll for up to 10s for container to return to running
+    $running = false;
+    $deadline = time() + 10;
+    while (time() < $deadline) {
+        $status = get_hblink_status();
+        if ($status === 'running') {
+            $running = true;
+            break;
+        }
+        sleep(1);
+    }
+
+    $apply_success = $running ? 1 : 0;
+    $apply_error   = $running ? null : 'HBLink did not return to running state within 10 seconds. Last restart output: ' . trim((string) $restart_output);
+
+    get_db()->prepare(
+        'UPDATE config_generation_history SET apply_success=?, apply_error=? WHERE id=?'
+    )->execute([$apply_success, $apply_error, $gen_id]);
+
+    log_audit_action($actor_id, 'config_applied', 'config', $gen_id, [
+        'success'    => $running,
+        'backup'     => $backup_path,
+    ]);
+
+    if (!$running) {
+        return ['ok' => false, 'error' => $apply_error, 'generation_id' => $gen_id];
+    }
+
+    return ['ok' => true, 'error' => null, 'generation_id' => $gen_id];
 }

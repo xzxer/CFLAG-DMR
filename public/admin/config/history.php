@@ -18,7 +18,7 @@ if ($detail_id > 0) {
     }
 } else {
     $detail  = null;
-    $history = get_generation_history(50);
+    $history = get_generation_history(50, 0);
 }
 
 $page_title = $detail !== null ? 'Generation Detail' : 'Generation History';
@@ -49,13 +49,43 @@ require_once $root . '/app/views/header.php';
                     <span class="field-val"><?= htmlspecialchars($detail['actor_username'] ?? '—', ENT_QUOTES, 'UTF-8') ?></span>
                 </div>
                 <div class="field-row">
-                    <span class="field-key">Result</span>
+                    <span class="field-key">Changed</span>
                     <span class="field-val">
                         <?= $detail['changed']
                             ? '<span class="badge badge-amber">Changed</span>'
                             : '<span class="badge badge-gray">No change</span>' ?>
                     </span>
                 </div>
+                <?php if ($detail['applied']): ?>
+                <div class="field-row">
+                    <span class="field-key">Applied At</span>
+                    <span class="field-val col-ts"><?= htmlspecialchars($detail['applied_at'] ?? '—', ENT_QUOTES, 'UTF-8') ?></span>
+                </div>
+                <div class="field-row">
+                    <span class="field-key">Apply Result</span>
+                    <span class="field-val">
+                        <?php if ($detail['apply_success'] === null): ?>
+                            <span class="badge badge-gray">Pending</span>
+                        <?php elseif ($detail['apply_success']): ?>
+                            <span class="badge badge-green">Success</span>
+                        <?php else: ?>
+                            <span class="badge badge-red">Failed</span>
+                        <?php endif; ?>
+                    </span>
+                </div>
+                <?php if (!empty($detail['apply_error'])): ?>
+                <div class="field-row" style="align-items:flex-start;">
+                    <span class="field-key">Error</span>
+                    <span class="field-val" style="color:var(--red);font-size:0.82rem;"><?= htmlspecialchars($detail['apply_error'], ENT_QUOTES, 'UTF-8') ?></span>
+                </div>
+                <?php endif; ?>
+                <?php if (!empty($detail['backup_path'])): ?>
+                <div class="field-row">
+                    <span class="field-key">Backup</span>
+                    <span class="field-val col-mono" style="font-size:0.78rem;"><?= htmlspecialchars($detail['backup_path'], ENT_QUOTES, 'UTF-8') ?></span>
+                </div>
+                <?php endif; ?>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -117,7 +147,9 @@ require_once $root . '/app/views/header.php';
                         <th>#</th>
                         <th>Generated</th>
                         <th>By</th>
-                        <th>Result</th>
+                        <th>Changed</th>
+                        <th>Applied</th>
+                        <th>Apply Result</th>
                         <th class="col-actions"></th>
                     </tr>
                 </thead>
@@ -131,6 +163,24 @@ require_once $root . '/app/views/header.php';
                             <?= $row['changed']
                                 ? '<span class="badge badge-amber">Changed</span>'
                                 : '<span class="badge badge-gray">No change</span>' ?>
+                        </td>
+                        <td>
+                            <?= $row['applied']
+                                ? '<span class="badge badge-blue">Applied</span>'
+                                : '<span class="badge badge-gray">Not applied</span>' ?>
+                        </td>
+                        <td>
+                            <?php if ($row['applied']): ?>
+                                <?php if ($row['apply_success'] === null): ?>
+                                    <span class="badge badge-gray">Pending</span>
+                                <?php elseif ($row['apply_success']): ?>
+                                    <span class="badge badge-green">Success</span>
+                                <?php else: ?>
+                                    <span class="badge badge-red" title="<?= htmlspecialchars($row['apply_error'] ?? '', ENT_QUOTES, 'UTF-8') ?>">Failed</span>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <span style="color:var(--text-3);">—</span>
+                            <?php endif; ?>
                         </td>
                         <td class="col-actions">
                             <a href="/admin/config/history.php?id=<?= (int)$row['id'] ?>" class="btn btn-ghost btn-xs">View</a>
