@@ -31,6 +31,7 @@ temp/
 *.sqlite
 *.db
 *.sql
+!migrations/*.sql
 
 # Local server/private files
 .htpasswd
