@@ -24,7 +24,7 @@
 
 **⚠️ CRITICAL**: Run migration before implementing T003+.
 
-- [ ] T002 Write migration 023_add_rolled_back_from_id.sql in migrations/ — ALTER TABLE config_generation_history ADD COLUMN rolled_back_from_id INT UNSIGNED NULL DEFAULT NULL AFTER backup_path, ADD CONSTRAINT fk_cgh_rollback_from FOREIGN KEY (rolled_back_from_id) REFERENCES config_generation_history (id) ON DELETE SET NULL
+- [X] T002 Write migration 023_add_rolled_back_from_id.sql in migrations/ — ALTER TABLE config_generation_history ADD COLUMN rolled_back_from_id INT UNSIGNED NULL DEFAULT NULL AFTER backup_path, ADD CONSTRAINT fk_cgh_rollback_from FOREIGN KEY (rolled_back_from_id) REFERENCES config_generation_history (id) ON DELETE SET NULL
 
 **Checkpoint**: Schema ready — PHP generator additions can now begin.
 
@@ -34,12 +34,12 @@
 
 **Purpose**: Refactor `apply_hblink_config()` into `apply_hblink_config_text()` to accept any config_text, enabling rollback to pass historical config directly. Existing behavior must be fully preserved.
 
-- [ ] T003 Refactor app/config/generator.php — extract `apply_hblink_config_text(string $config_text, int $actor_id, ?int $rolled_back_from_id = null): array` by moving the backup/write/restart/poll/audit logic from apply_hblink_config() into this new internal function; add rolled_back_from_id to the history INSERT
-- [ ] T004 Update `apply_hblink_config(int $actor_id): array` in app/config/generator.php to call generate_hblink_config() then pass the resulting config_text to apply_hblink_config_text($config_text, $actor_id, null) — behavior must match the pre-refactor version exactly
-- [ ] T005 Add `rollback_to_generation(int $generation_id, int $actor_id): array` to app/config/generator.php — SELECT config_text FROM config_generation_history WHERE id=? (return error if not found), call apply_hblink_config_text($config_text, $actor_id, $generation_id), return ['ok', 'error', 'new_generation_id']
-- [ ] T006 [P] Add `get_config_generation_by_id(int $id): array|null` to app/config/generator.php — SELECT all columns including config_text WHERE id=? — used for download and diff-expand
-- [ ] T007 [P] Update `get_generation_history(int $limit, int $offset)` in app/config/generator.php — add rolled_back_from_id to SELECT; add a LEFT JOIN or subquery to fetch the rolled_back source record's generated_at as rollback_source_generated_at
-- [ ] T008 [P] Add `get_running_hblink_config(): string|null` to app/config/generator.php — file_get_contents(HBLINK_CONFIG_PATH from _get_config_output_path()); return content string or null if unreadable
+- [X] T003 Refactor app/config/generator.php — extract `apply_hblink_config_text(string $config_text, int $actor_id, ?int $rolled_back_from_id = null): array` by moving the backup/write/restart/poll/audit logic from apply_hblink_config() into this new internal function; add rolled_back_from_id to the history INSERT
+- [X] T004 Update `apply_hblink_config(int $actor_id): array` in app/config/generator.php to call generate_hblink_config() then pass the resulting config_text to apply_hblink_config_text($config_text, $actor_id, null) — behavior must match the pre-refactor version exactly
+- [X] T005 Add `rollback_to_generation(int $generation_id, int $actor_id): array` to app/config/generator.php — SELECT config_text FROM config_generation_history WHERE id=? (return error if not found), call apply_hblink_config_text($config_text, $actor_id, $generation_id), return ['ok', 'error', 'new_generation_id']
+- [X] T006 [P] Add `get_config_generation_by_id(int $id): array|null` to app/config/generator.php — SELECT all columns including config_text WHERE id=? — used for download and diff-expand
+- [X] T007 [P] Update `get_generation_history(int $limit, int $offset)` in app/config/generator.php — add rolled_back_from_id to SELECT; add a LEFT JOIN or subquery to fetch the rolled_back source record's generated_at as rollback_source_generated_at
+- [X] T008 [P] Add `get_running_hblink_config(): string|null` to app/config/generator.php — file_get_contents(HBLINK_CONFIG_PATH from _get_config_output_path()); return content string or null if unreadable
 
 **Checkpoint**: Verify apply_hblink_config() still works correctly after refactor — a live apply must succeed and produce a new history record with rolled_back_from_id = NULL.
 
@@ -57,10 +57,10 @@
 
 ### Implementation
 
-- [ ] T009 [US1] [US2] [US3] Create public/admin/config/history.php — replace the existing file entirely: role check (admin or system_admin for list; system_admin for rollback/download); dispatch on $_GET['action'] for download and running-config; dispatch on $_POST['action'] for rollback (POST with CSRF, PRG pattern); GET list view: call get_generation_history(20, $offset) with ?page=N pagination; render table with columns: # (id), date/time (generated_at), actor, applied badge, apply success/failure badge, changed badge, rolled_back_from indicator (↩ from #N linked to that row if rolled_back_from_id set); per-row buttons: Download (GET link), Roll Back to This (POST form with CSRF)
-- [ ] T010 [US2] Add download action handler inside public/admin/config/history.php — GET ?action=download&id=NNN: system_admin role check, call get_config_generation_by_id($id) (404 redirect if null), send headers: Content-Type text/plain, Content-Disposition attachment filename=hblink-{YYYYMMDD-HHMMSS}.cfg using generated_at formatted as date, output config_text, exit
-- [ ] T011 [US3] Add rollback action handler inside public/admin/config/history.php — POST ?action=rollback: system_admin role check, verify_csrf, intval $_POST['id'], call rollback_to_generation($id, $actor_id), PRG redirect to history.php with flash: success "Rolled back to config from [generated_at] — HBLink restarted at HH:MM:SS", failure "Rollback failed: [error detail]"
-- [ ] T012 [US1] Add diff expand toggle to history list rows — for rows where changed=1: add a "Show Diff" toggle button that reveals a hidden div containing the diff_text rendered in a `<pre>` block with `+` lines colored green (var(--green)) and `-` lines colored red (var(--red)); implement as onclick toggle (no page reload, no AJAX)
+- [X] T009 [US1] [US2] [US3] Create public/admin/config/history.php — replace the existing file entirely: role check (admin or system_admin for list; system_admin for rollback/download); dispatch on $_GET['action'] for download and running-config; dispatch on $_POST['action'] for rollback (POST with CSRF, PRG pattern); GET list view: call get_generation_history(20, $offset) with ?page=N pagination; render table with columns: # (id), date/time (generated_at), actor, applied badge, apply success/failure badge, changed badge, rolled_back_from indicator (↩ from #N linked to that row if rolled_back_from_id set); per-row buttons: Download (GET link), Roll Back to This (POST form with CSRF)
+- [X] T010 [US2] Add download action handler inside public/admin/config/history.php — GET ?action=download&id=NNN: system_admin role check, call get_config_generation_by_id($id) (404 redirect if null), send headers: Content-Type text/plain, Content-Disposition attachment filename=hblink-{YYYYMMDD-HHMMSS}.cfg using generated_at formatted as date, output config_text, exit
+- [X] T011 [US3] Add rollback action handler inside public/admin/config/history.php — POST ?action=rollback: system_admin role check, verify_csrf, intval $_POST['id'], call rollback_to_generation($id, $actor_id), PRG redirect to history.php with flash: success "Rolled back to config from [generated_at] — HBLink restarted at HH:MM:SS", failure "Rollback failed: [error detail]"
+- [X] T012 [US1] Add diff expand toggle to history list rows — for rows where changed=1: add a "Show Diff" toggle button that reveals a hidden div containing the diff_text rendered in a `<pre>` block with `+` lines colored green (var(--green)) and `-` lines colored red (var(--red)); implement as onclick toggle (no page reload, no AJAX)
 
 **Checkpoint**: History page functional with pagination, download, rollback, and inline diff expand. Verify rolled_back_from_id is set correctly after rollback.
 
@@ -74,7 +74,7 @@
 
 ### Implementation
 
-- [ ] T013 [US4] Add "Show Running Config" GET action and button to public/admin/config/history.php — GET ?action=running: system_admin role check, call get_running_hblink_config(); if null render error "Config file not found or could not be read at [HBLINK_CONFIG_PATH]"; if string render a modal overlay (CSS-only: hidden div with fixed overlay, close button) containing the config in a `<pre>` block with copy button; add "Show Running Config" button to the page header that links to ?action=running
+- [X] T013 [US4] Add "Show Running Config" GET action and button to public/admin/config/history.php — GET ?action=running: system_admin role check, call get_running_hblink_config(); if null render error "Config file not found or could not be read at [HBLINK_CONFIG_PATH]"; if string render a modal overlay (CSS-only: hidden div with fixed overlay, close button) containing the config in a `<pre>` block with copy button; add "Show Running Config" button to the page header that links to ?action=running
 
 **Checkpoint**: Running config displayed correctly; error shown when file unavailable.
 
@@ -82,9 +82,9 @@
 
 ## Phase 6: Navigation & Polish
 
-- [ ] T014 Add "View History" link to public/admin/config/index.php aside panel — already has a "Generation History" link; update it to point to the new paginated history.php (it currently works but verify the link text and destination are correct after the rewrite)
-- [ ] T015 Verify config_text is NOT in the list query — read the get_generation_history() SELECT in app/config/generator.php and confirm config_text column is absent from the list query (only fetched by get_config_generation_by_id())
-- [ ] T016 Manual rollback validation — apply config A (generate + apply), then apply config B, then roll back to A; verify in DB: three history records where record 3 has rolled_back_from_id = record 1's id; verify /etc/hblink3/hblink.cfg content matches record 1's config_text
+- [X] T014 Add "View History" link to public/admin/config/index.php aside panel — already has a "Generation History" link; update it to point to the new paginated history.php (it currently works but verify the link text and destination are correct after the rewrite)
+- [X] T015 Verify config_text is NOT in the list query — read the get_generation_history() SELECT in app/config/generator.php and confirm config_text column is absent from the list query (only fetched by get_config_generation_by_id())
+- [X] T016 Manual rollback validation — apply config A (generate + apply), then apply config B, then roll back to A; verify in DB: three history records where record 3 has rolled_back_from_id = record 1's id; verify /etc/hblink3/hblink.cfg content matches record 1's config_text
 
 ---
 

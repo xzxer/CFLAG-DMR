@@ -4,6 +4,7 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 require_once $root . '/app/auth/roles.php';
 require_once $root . '/app/lastheard/reader.php';
+require_once $root . '/app/subscribers/manager.php';
 
 start_session();
 
@@ -42,6 +43,9 @@ $rows        = $result['rows'];
 $total       = $result['total'];
 $error       = $result['error'];
 $total_pages = ($is_authed && $per_page > 0) ? (int) ceil($total / $per_page) : 1;
+
+$dmr_ids      = array_filter(array_map('intval', array_column($rows, 'src_id')));
+$subscriber_map = !empty($dmr_ids) ? get_subscribers_for_ids($dmr_ids) : [];
 
 function page_url(int $p): string
 {
@@ -116,10 +120,11 @@ if ($is_authed) {
                     </thead>
                     <tbody>
                         <?php foreach ($rows as $row): ?>
+                        <?php $sub = $subscriber_map[(int)$row['src_id']] ?? null; ?>
                         <tr>
                             <td class="col-ts"><?= htmlspecialchars($row['datetime'],    ENT_QUOTES, 'UTF-8') ?></td>
                             <td class="col-call"><?= htmlspecialchars($row['callsign'],  ENT_QUOTES, 'UTF-8') ?></td>
-                            <td class="col-mono" style="color:var(--accent-text);"><?= htmlspecialchars($row['src_id'],      ENT_QUOTES, 'UTF-8') ?></td>
+                            <td class="col-mono" style="color:var(--accent-text);"><?= htmlspecialchars($row['src_id'], ENT_QUOTES, 'UTF-8') ?><?php if ($sub !== null && $sub['name'] !== ''): ?><br><span style="font-size:0.72rem;color:var(--text-3);font-family:inherit;"><?= htmlspecialchars($sub['name'], ENT_QUOTES, 'UTF-8') ?></span><?php endif; ?></td>
                             <td><?= htmlspecialchars($row['tg_name'] !== '' ? $row['tg_name'] : '—', ENT_QUOTES, 'UTF-8') ?></td>
                             <td class="col-mono"><?= htmlspecialchars($row['tgid'],      ENT_QUOTES, 'UTF-8') ?></td>
                             <td class="col-mono"><?= htmlspecialchars($row['timeslot'],  ENT_QUOTES, 'UTF-8') ?></td>

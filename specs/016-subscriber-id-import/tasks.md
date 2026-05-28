@@ -16,8 +16,8 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Verify `allow_url_fopen` is enabled in PHP: `php -r "echo ini_get('allow_url_fopen');"` — must return 1; if not, document the workaround (curl_exec fallback) before proceeding
-- [ ] T002 Verify RadioID.net CSV is reachable and returns Last-Modified header: `curl -sI "https://radioid.net/static/user.csv" | grep -i "last-modified\|content-length\|http/"` — confirm HTTP 200 and note Last-Modified value
+- [X] T001 Verify `allow_url_fopen` is enabled in PHP: `php -r "echo ini_get('allow_url_fopen');"` — must return 1; if not, document the workaround (curl_exec fallback) before proceeding
+- [X] T002 Verify RadioID.net CSV is reachable and returns Last-Modified header: `curl -sI "https://radioid.net/static/user.csv" | grep -i "last-modified\|content-length\|http/"` — confirm HTTP 200 and note Last-Modified value
 
 ---
 
@@ -25,8 +25,8 @@
 
 **⚠️ CRITICAL**: Both migrations must run before any PHP code is written.
 
-- [ ] T003 Write migrations/021_create_subscriber_ids.sql — CREATE TABLE subscriber_ids (radio_id INT UNSIGNED NOT NULL, callsign VARCHAR(16) NOT NULL, name VARCHAR(128) NOT NULL DEFAULT '', city VARCHAR(128) NOT NULL DEFAULT '', state VARCHAR(64) NOT NULL DEFAULT '', country VARCHAR(64) NOT NULL DEFAULT '', source ENUM('radioid','local') NOT NULL DEFAULT 'radioid', last_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (radio_id), INDEX idx_callsign (callsign), INDEX idx_source (source)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-- [ ] T004 Write migrations/022_subscriber_import_settings.sql — INSERT INTO system_settings (setting_key, setting_value) VALUES ('subscriber_last_import_at',''), ('subscriber_last_modified',''), ('subscriber_import_count','0'), ('subscriber_min_import_interval_hours','23') ON DUPLICATE KEY UPDATE setting_key = setting_key
+- [X] T003 Write migrations/021_create_subscriber_ids.sql — CREATE TABLE subscriber_ids (radio_id INT UNSIGNED NOT NULL, callsign VARCHAR(16) NOT NULL, name VARCHAR(128) NOT NULL DEFAULT '', city VARCHAR(128) NOT NULL DEFAULT '', state VARCHAR(64) NOT NULL DEFAULT '', country VARCHAR(64) NOT NULL DEFAULT '', source ENUM('radioid','local') NOT NULL DEFAULT 'radioid', last_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (radio_id), INDEX idx_callsign (callsign), INDEX idx_source (source)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+- [X] T004 Write migrations/022_subscriber_import_settings.sql — INSERT INTO system_settings (setting_key, setting_value) VALUES ('subscriber_last_import_at',''), ('subscriber_last_modified',''), ('subscriber_import_count','0'), ('subscriber_min_import_interval_hours','23') ON DUPLICATE KEY UPDATE setting_key = setting_key
 
 **Checkpoint**: Both migrations applied — `DESCRIBE subscriber_ids` and `SELECT setting_key FROM system_settings WHERE setting_key LIKE 'subscriber_%'` must return expected results.
 
@@ -43,16 +43,16 @@
 
 ### Implementation
 
-- [ ] T005 [US1] Create app/subscribers/manager.php — declare(strict_types=1); require database/connection.php; define the file structure with all function stubs
-- [ ] T006 [US1] Implement `get_subscriber_import_stats(): array` in app/subscribers/manager.php — SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('subscriber_last_import_at','subscriber_last_modified','subscriber_import_count','subscriber_min_import_interval_hours'); return structured array with 'count', 'last_import_at', 'last_modified', 'min_interval_hours', 'next_import_at' (computed: last_import_at + min_interval_hours)
-- [ ] T007 [US1] Implement `import_subscribers_from_radioid(bool $force = false): array` in app/subscribers/manager.php with these steps:
+- [X] T005 [US1] Create app/subscribers/manager.php — declare(strict_types=1); require database/connection.php; define the file structure with all function stubs
+- [X] T006 [US1] Implement `get_subscriber_import_stats(): array` in app/subscribers/manager.php — SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('subscriber_last_import_at','subscriber_last_modified','subscriber_import_count','subscriber_min_import_interval_hours'); return structured array with 'count', 'last_import_at', 'last_modified', 'min_interval_hours', 'next_import_at' (computed: last_import_at + min_interval_hours)
+- [X] T007 [US1] Implement `import_subscribers_from_radioid(bool $force = false): array` in app/subscribers/manager.php with these steps:
   (a) Check minimum interval: if !$force AND last_import_at + min_interval_hours > now, return ['status'=>'too_soon', 'next_at'=>...]
   (b) Build HTTP stream context: array('http'=>['method'=>'GET','header'=>"If-Modified-Since: {$last_modified}\r\nUser-Agent: CFLAG-DMR/1.0 (contact: admin@cflag.net)\r\n","ignore_errors"=>true])
   (c) Open stream with fopen(); read $http_response_header; if status line contains '304', return ['status'=>'not_modified']
   (d) If 200: parse new Last-Modified from $http_response_header
   (e) set_time_limit(300); fgetcsv() row loop: skip header row, batch INSERT...ON DUPLICATE KEY UPDATE every 500 rows; skip rows where source='local' by using WHERE clause: UPDATE only WHERE source != 'local'
   (f) On loop end: UPDATE system_settings for last_import_at, last_modified, import_count; return ['status'=>'ok','imported'=>int,'batches_failed'=>int,'error'=>null]
-- [ ] T008 [US1] Create public/admin/subscribers/index.php — system_admin role check; GET: show import stats panel (record count, last import at, last modified, next allowed import at); "Import Now" POST form (force=true, CSRF); "Check for Updates" POST form (force=false, CSRF); POST handler: call import_subscribers_from_radioid($force), PRG redirect with flash message; show 'allow_url_fopen' warning if disabled; show cron setup instructions in a collapsed section with sample crontab line: `0 6 * * * www-data php /opt/cflag-dmr/scripts/import_subscribers.php >> /var/log/cflag-subscriber-import.log 2>&1`
+- [X] T008 [US1] Create public/admin/subscribers/index.php — system_admin role check; GET: show import stats panel (record count, last import at, last modified, next allowed import at); "Import Now" POST form (force=true, CSRF); "Check for Updates" POST form (force=false, CSRF); POST handler: call import_subscribers_from_radioid($force), PRG redirect with flash message; show 'allow_url_fopen' warning if disabled; show cron setup instructions in a collapsed section with sample crontab line: `0 6 * * * www-data php /opt/cflag-dmr/scripts/import_subscribers.php >> /var/log/cflag-subscriber-import.log 2>&1`
 
 **Checkpoint**: Admin import functional end-to-end. Verify DB row count, verify conditional GET returns 304 on second immediate import attempt.
 
@@ -66,7 +66,7 @@
 
 ### Implementation
 
-- [ ] T009 [US4] Create scripts/import_subscribers.php — bootstrap: define CFLAG_ROOT (dirname(__DIR__)), require app/config/env.php, app/database/connection.php, app/auth/roles.php (for log_audit_action if needed), app/subscribers/manager.php; call import_subscribers_from_radioid(false); output log line: "[{datetime}] status={status} imported={n} batches_failed={n}"; exit(0) on ok/not_modified/too_soon; exit(1) on error; check allow_url_fopen at top and exit(1) with error if disabled
+- [X] T009 [US4] Create scripts/import_subscribers.php — bootstrap: define CFLAG_ROOT (dirname(__DIR__)), require app/config/env.php, app/database/connection.php, app/auth/roles.php (for log_audit_action if needed), app/subscribers/manager.php; call import_subscribers_from_radioid(false); output log line: "[{datetime}] status={status} imported={n} batches_failed={n}"; exit(0) on ok/not_modified/too_soon; exit(1) on error; check allow_url_fopen at top and exit(1) with error if disabled
 
 **Checkpoint**: `php scripts/import_subscribers.php` runs cleanly from CLI as root and as www-data.
 
@@ -80,10 +80,10 @@
 
 ### Implementation
 
-- [ ] T010 [US2] Implement `get_subscriber(int $dmr_id): array|null` in app/subscribers/manager.php — SELECT * FROM subscriber_ids WHERE radio_id = ?; return row array or null
-- [ ] T011 [US2] Implement `get_subscribers_for_ids(array $dmr_ids): array` in app/subscribers/manager.php — if empty array, return []; build IN (?,?,?) placeholders; SELECT * FROM subscriber_ids WHERE radio_id IN (...); return [radio_id => record] keyed array for O(1) lookup in display loop
-- [ ] T012 [US2] Locate the admin last-heard page (check public/admin/last-heard/index.php or public/admin/activity/) — add require_once for app/subscribers/manager.php; after fetching last-heard rows, collect all unique DMR IDs into an array; call get_subscribers_for_ids($dmr_ids); in the row render loop, look up each DMR ID in the subscriber map and display callsign + name alongside the ID if found; graceful fallback: show raw DMR ID if not found
-- [ ] T013 [US2] Apply same subscriber lookup to the user-facing last-heard page (check public/last-heard/index.php or public/activity/) — same pattern as T012
+- [X] T010 [US2] Implement `get_subscriber(int $dmr_id): array|null` in app/subscribers/manager.php — SELECT * FROM subscriber_ids WHERE radio_id = ?; return row array or null
+- [X] T011 [US2] Implement `get_subscribers_for_ids(array $dmr_ids): array` in app/subscribers/manager.php — if empty array, return []; build IN (?,?,?) placeholders; SELECT * FROM subscriber_ids WHERE radio_id IN (...); return [radio_id => record] keyed array for O(1) lookup in display loop
+- [X] T012 [US2] Locate the admin last-heard page (check public/admin/last-heard/index.php or public/admin/activity/) — add require_once for app/subscribers/manager.php; after fetching last-heard rows, collect all unique DMR IDs into an array; call get_subscribers_for_ids($dmr_ids); in the row render loop, look up each DMR ID in the subscriber map and display callsign + name alongside the ID if found; graceful fallback: show raw DMR ID if not found
+- [X] T013 [US2] Apply same subscriber lookup to the user-facing last-heard page (check public/last-heard/index.php or public/activity/) — same pattern as T012
 
 **Checkpoint**: Last-heard shows callsigns for known IDs. No visual change for unknown IDs.
 
@@ -97,10 +97,10 @@
 
 ### Implementation
 
-- [ ] T014 [US3] Implement `upsert_subscriber_override(int $radio_id, string $callsign, string $name): void` in app/subscribers/manager.php — INSERT INTO subscriber_ids (radio_id, callsign, name, source) VALUES (?,?,?,'local') ON DUPLICATE KEY UPDATE callsign=VALUES(callsign), name=VALUES(name), source='local'
-- [ ] T015 [US3] Implement `delete_subscriber_override(int $radio_id): bool` in app/subscribers/manager.php — DELETE FROM subscriber_ids WHERE radio_id = ? AND source = 'local'; return true if rowCount() > 0
-- [ ] T016 [US3] Implement `get_subscriber_overrides(int $limit = 50, int $offset = 0): array` in app/subscribers/manager.php — SELECT * FROM subscriber_ids WHERE source = 'local' ORDER BY radio_id LIMIT ? OFFSET ?
-- [ ] T017 [US3] Add override management section to public/admin/subscribers/index.php — paginated table of local overrides (columns: DMR ID, callsign, name, delete button); add override form above table: DMR ID input (integer), callsign input (max 16 chars), name input (max 128 chars), submit button; POST handlers for 'add_override' (calls upsert_subscriber_override) and 'delete_override' (calls delete_subscriber_override); all forms have CSRF tokens; PRG pattern with flash messages
+- [X] T014 [US3] Implement `upsert_subscriber_override(int $radio_id, string $callsign, string $name): void` in app/subscribers/manager.php — INSERT INTO subscriber_ids (radio_id, callsign, name, source) VALUES (?,?,?,'local') ON DUPLICATE KEY UPDATE callsign=VALUES(callsign), name=VALUES(name), source='local'
+- [X] T015 [US3] Implement `delete_subscriber_override(int $radio_id): bool` in app/subscribers/manager.php — DELETE FROM subscriber_ids WHERE radio_id = ? AND source = 'local'; return true if rowCount() > 0
+- [X] T016 [US3] Implement `get_subscriber_overrides(int $limit = 50, int $offset = 0): array` in app/subscribers/manager.php — SELECT * FROM subscriber_ids WHERE source = 'local' ORDER BY radio_id LIMIT ? OFFSET ?
+- [X] T017 [US3] Add override management section to public/admin/subscribers/index.php — paginated table of local overrides (columns: DMR ID, callsign, name, delete button); add override form above table: DMR ID input (integer), callsign input (max 16 chars), name input (max 128 chars), submit button; POST handlers for 'add_override' (calls upsert_subscriber_override) and 'delete_override' (calls delete_subscriber_override); all forms have CSRF tokens; PRG pattern with flash messages
 
 **Checkpoint**: Override created, visible in last-heard with overridden callsign, survives a re-import.
 
@@ -108,9 +108,9 @@
 
 ## Phase 7: Navigation & Polish
 
-- [ ] T018 Add "Subscribers" link to admin sidebar navigation (check public/admin/ layout or header include)
-- [ ] T019 Verify source='local' rows are never overwritten by import — review the ON DUPLICATE KEY UPDATE clause in T007 step (e): it must NOT update source column; rows where source='local' should retain their callsign/name after an import run over them
-- [ ] T020 Verify import handles malformed CSV rows gracefully — add try/catch around each batch; on exception, log the error, increment batches_failed counter, and continue to the next batch rather than aborting the entire import
+- [X] T018 Add "Subscribers" link to admin sidebar navigation (check public/admin/ layout or header include)
+- [X] T019 Verify source='local' rows are never overwritten by import — review the ON DUPLICATE KEY UPDATE clause in T007 step (e): it must NOT update source column; rows where source='local' should retain their callsign/name after an import run over them
+- [X] T020 Verify import handles malformed CSV rows gracefully — add try/catch around each batch; on exception, log the error, increment batches_failed counter, and continue to the next batch rather than aborting the entire import
 
 ---
 

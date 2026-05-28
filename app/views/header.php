@@ -102,6 +102,10 @@ $_nav_is_sysadmin = $_nav_user_id > 0 && user_has_role($_nav_user_id, 'system_ad
                     Talkgroups
                 </a>
                 <?php if ($_nav_is_sysadmin): ?>
+                <a href="/admin/subscribers/" class="sidebar-link<?= $active_nav === 'admin-subscribers' ? ' active' : '' ?>">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-5 6s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H1zm7-6a1 1 0 0 1 0-2 4 4 0 0 1 4 4 1 1 0 0 1-2 0 2 2 0 0 0-2-2z"/></svg>
+                    Subscribers
+                </a>
                 <a href="/admin/config/" class="sidebar-link<?= in_array($active_nav, ['admin-config','admin-config-master','admin-config-openbridge','admin-config-history'], true) ? ' active' : '' ?>">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 5a3 3 0 1 0 0 6A3 3 0 0 0 8 5zm0 1.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z"/><path d="M6.5 1l-.5 1.5-1.5.5L3 2 1 4l1 1.5-.5 1.5H0l.5 2H2l.5 1.5L1 12l2 2 1.5-1 1.5.5V15h2v-1.5L10 13l1.5 1 2-2-1-1.5.5-1.5H15l-.5-2H13l-.5-1.5L13 4l-2-2-1.5 1L8 2.5 7.5 1H6.5z"/></svg>
                     Network Config
